@@ -13,6 +13,7 @@ kgbers/
 │   │   ├── knowledge_graph_routes.py
 │   │   ├── user_routes.py
 │   │   ├── course_routes.py
+│   │   ├── main_routes.py
 │   │   └── recommendation_routes.py
 │   ├── services/
 │   │   ├── __init__.py

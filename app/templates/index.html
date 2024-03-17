@@ -1,0 +1,42 @@
+{% extends 'base.html' %} {% block title %}教育推荐系统 - 主页{% endblock %} {%
+block content %}
+<div class="container">
+  <h1>欢迎来到教育推荐系统!</h1>
+  <p>我们为您提供个性化的课程推荐,帮助您找到最适合的学习资源。</p>
+
+  <div class="featured-courses">
+    <h2>精选课程</h2>
+    <ul class="course-list">
+      {% for course in featured_courses %}
+      <li class="course-item">
+        <h3 class="course-title">{{ course.title }}</h3>
+        <p class="course-description">{{ course.description[:100] }}...</p>
+        <a
+          href="{{ url_for('course.get_course', course_id=course.id) }}"
+          class="btn"
+          >查看详情</a
+        >
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <div class="top-recommendations">
+    <h2>热门推荐</h2>
+    <ul class="recommendation-list">
+      {% for recommendation in top_recommendations %}
+      <li class="recommendation-item">
+        <p class="recommendation-course">{{ recommendation.course.title }}</p>
+        <p class="recommendation-score">推荐得分: {{ recommendation.score }}</p>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <div class="cta-section">
+    <h2>开始您的学习之旅</h2>
+    <p>注册并探索我们的课程库,发现适合您的学习资源。</p>
+    <a href="{{ url_for('user.register') }}" class="btn">立即注册</a>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,88 @@
+{% extends 'base.html' %} {% block title %}课程列表{% endblock %} {% block
+content %}
+<div class="container">
+  <h1>课程列表</h1>
+
+  <div class="course-filters">
+    <form action="{{ url_for('course.filter_courses') }}" method="get">
+      <label for="category">课程类别:</label>
+      <select name="category" id="category">
+        <option value="">全部</option>
+        {% for category in categories %}
+        <option value="{{ category }}">{{ category }}</option>
+        {% endfor %}
+      </select>
+
+      <label for="difficulty">难度级别:</label>
+      <select name="difficulty" id="difficulty">
+        <option value="">全部</option>
+        {% for difficulty in difficulties %}
+        <option value="{{ difficulty }}">{{ difficulty }}</option>
+        {% endfor %}
+      </select>
+
+      <button type="submit" class="btn filter-btn">筛选</button>
+    </form>
+  </div>
+
+  <div class="course-search">
+    <form action="{{ url_for('course.search_courses') }}" method="get">
+      <input type="text" name="keyword" placeholder="输入关键字" />
+      <button type="submit" class="btn search-btn">搜索</button>
+    </form>
+  </div>
+
+  <div class="course-list">
+    {% if courses %}
+    <ul>
+      {% for course in courses %}
+      <li class="course-item">
+        <h2>{{ course.title }}</h2>
+        <p>{{ course.description }}</p>
+        <div class="course-meta">
+          <span>类别: {{ course.category }}</span>
+          <span>难度: {{ course.difficulty }}</span>
+          <span>时长: {{ course.duration }} 小时</span>
+          <span>评分: {{ course.rating }}</span>
+        </div>
+        <a
+          href="{{ url_for('course.get_course', course_id=course.id) }}"
+          class="btn view-course-btn"
+          >查看课程</a
+        >
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p>暂无课程</p>
+    {% endif %}
+  </div>
+
+  <div class="pagination">
+    {% if pagination.has_prev %}
+    <a
+      href="{{ url_for('course.get_all_courses', page=pagination.prev_num) }}"
+      class="btn prev-btn"
+      >上一页</a
+    >
+    {% endif %} {% for page_num in pagination.iter_pages() %} {% if page_num %}
+    {% if page_num != pagination.page %}
+    <a
+      href="{{ url_for('course.get_all_courses', page=page_num) }}"
+      class="btn page-btn"
+      >{{ page_num }}</a
+    >
+    {% else %}
+    <span class="current-page">{{ page_num }}</span>
+    {% endif %} {% else %}
+    <span class="ellipsis">...</span>
+    {% endif %} {% endfor %} {% if pagination.has_next %}
+    <a
+      href="{{ url_for('course.get_all_courses', page=pagination.next_num) }}"
+      class="btn next-btn"
+      >下一页</a
+    >
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

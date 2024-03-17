@@ -1,0 +1,79 @@
+{% extends 'base.html' %} {% block title %}个人资料{% endblock %} {% block
+content %}
+<div class="container">
+  <h1>个人资料</h1>
+
+  <div class="profile-info">
+    <h2>基本信息</h2>
+    <p><strong>用户名:</strong> {{ user.username }}</p>
+    <p><strong>电子邮件:</strong> {{ user.email }}</p>
+    <p><strong>角色:</strong> {{ user.role }}</p>
+  </div>
+
+  <div class="profile-actions">
+    <h2>操作</h2>
+    <button class="btn edit-profile-btn" onclick="editProfile()">
+      编辑资料
+    </button>
+    <button class="btn change-password-btn" onclick="changePassword()">
+      修改密码
+    </button>
+  </div>
+
+  <div class="course-history">
+    <h2>学习历史</h2>
+    {% if course_history %}
+    <ul class="course-list">
+      {% for course in course_history %}
+      <li class="course-item">
+        <h3>{{ course.title }}</h3>
+        <p>{{ course.description }}</p>
+        <a
+          href="{{ url_for('course.get_course', course_id=course.id) }}"
+          class="btn view-course-btn"
+          >查看课程</a
+        >
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p>暂无学习历史</p>
+    {% endif %}
+  </div>
+
+  <div class="user-recommendations">
+    <h2>个性化推荐</h2>
+    {% if user_recommendations %}
+    <ul class="recommendation-list">
+      {% for recommendation in user_recommendations %}
+      <li class="recommendation-item">
+        <h3>{{ recommendation.course.title }}</h3>
+        <p>推荐得分: {{ recommendation.score }}</p>
+        <a
+          href="{{ url_for('course.get_course', course_id=recommendation.course.id) }}"
+          class="btn view-course-btn"
+          >查看课程</a
+        >
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p>暂无个性化推荐</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %} {% block scripts %}
+<script>
+  function editProfile() {
+    // 弹出编辑资料的模态框或跳转到编辑资料页面
+    // 在这里实现编辑资料的逻辑
+    alert("编辑资料功能正在开发中,敬请期待!");
+  }
+
+  function changePassword() {
+    // 弹出修改密码的模态框或跳转到修改密码页面
+    // 在这里实现修改密码的逻辑
+    alert("修改密码功能正在开发中,敬请期待!");
+  }
+</script>
+{% endblock %}

@@ -1,0 +1,41 @@
+{% extends 'base.html' %} {% block title %}推荐列表{% endblock %} {% block
+content %}
+<div class="container">
+  <h1>推荐列表</h1>
+
+  {% if recommendations %}
+  <ul class="recommendation-list">
+    {% for recommendation in recommendations %}
+    <li class="recommendation-item">
+      <div class="recommendation-course">
+        <h2>{{ recommendation.course.title }}</h2>
+        <p>{{ recommendation.course.description }}</p>
+      </div>
+      <div class="recommendation-details">
+        <p>推荐得分: {{ recommendation.score }}</p>
+        <p>
+          推荐时间: {{ recommendation.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}
+        </p>
+      </div>
+      <div class="recommendation-actions">
+        <button
+          class="btn update-btn"
+          onclick="updateRecommendation({{ recommendation.id }})"
+        >
+          更新推荐
+        </button>
+        <button
+          class="btn delete-btn"
+          onclick="deleteRecommendation({{ recommendation.id }})"
+        >
+          删除推荐
+        </button>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p>暂无推荐</p>
+  {% endif %}
+</div>
+{% endblock %}
