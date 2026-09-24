@@ -8,17 +8,17 @@ content %}
       <label for="category">课程类别:</label>
       <select name="category" id="category">
         <option value="">全部</option>
-        {% for category in categories %}
+        {% if categories %} {% for category in categories %}
         <option value="{{ category }}">{{ category }}</option>
-        {% endfor %}
+        {% endfor %} {% endif %}
       </select>
 
       <label for="difficulty">难度级别:</label>
       <select name="difficulty" id="difficulty">
         <option value="">全部</option>
-        {% for difficulty in difficulties %}
+        {% if difficulties %} {% for difficulty in difficulties %}
         <option value="{{ difficulty }}">{{ difficulty }}</option>
-        {% endfor %}
+        {% endfor %} {% endif %}
       </select>
 
       <button type="submit" class="btn filter-btn">筛选</button>
@@ -58,6 +58,7 @@ content %}
     {% endif %}
   </div>
 
+  {% if pagination %}
   <div class="pagination">
     {% if pagination.has_prev %}
     <a
@@ -84,5 +85,6 @@ content %}
     >
     {% endif %}
   </div>
+  {% endif %}
 </div>
 {% endblock %}

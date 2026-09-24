@@ -1,0 +1,35 @@
+[
+  {
+    "id": 101,
+    "title": "Python 编程入门",
+    "description": "Python 基础语法、数据结构与编程思维。",
+    "provider": "SampleMOOC",
+    "url": "https://example.com/python",
+    "category": "编程",
+    "difficulty": "beginner",
+    "duration": 20.0,
+    "rating": 4.6
+  },
+  {
+    "id": 102,
+    "title": "数据结构与算法",
+    "description": "线性表、树、图与常见算法设计。",
+    "provider": "SampleMOOC",
+    "url": "https://example.com/algorithms",
+    "category": "编程",
+    "difficulty": "intermediate",
+    "duration": 36.0,
+    "rating": 4.7
+  },
+  {
+    "id": 103,
+    "title": "机器学习基础",
+    "description": "监督学习、无监督学习与模型评估。",
+    "provider": "SampleMOOC",
+    "url": "https://example.com/ml",
+    "category": "人工智能",
+    "difficulty": "advanced",
+    "duration": 40.0,
+    "rating": 4.8
+  }
+]

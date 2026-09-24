@@ -1,13 +1,39 @@
-from flask import Blueprint, render_template, request, jsonify
+from flask import Blueprint, render_template, request, jsonify, redirect, url_for
+from flask_login import current_user
 from app.models.course import Course
+from app.services.learning_path_service import LearningPathService
 
 course_bp = Blueprint("course", __name__)
+
+PER_PAGE = 10
+
+
+def _filter_options():
+    categories = [
+        row[0]
+        for row in Course.query.with_entities(Course.category).distinct().all()
+        if row[0]
+    ]
+    difficulties = [
+        row[0]
+        for row in Course.query.with_entities(Course.difficulty).distinct().all()
+        if row[0]
+    ]
+    return categories, difficulties
 
 
 @course_bp.route("/courses")
 def get_all_courses():
-    courses = Course.query.all()
-    return render_template("course_list.html", courses=courses)
+    page = request.args.get("page", 1, type=int)
+    pagination = Course.query.paginate(page=page, per_page=PER_PAGE, error_out=False)
+    categories, difficulties = _filter_options()
+    return render_template(
+        "course_list.html",
+        courses=pagination.items,
+        pagination=pagination,
+        categories=categories,
+        difficulties=difficulties,
+    )
 
 
 @course_bp.route("/courses/<int:course_id>")
@@ -19,6 +45,21 @@ def get_course(course_id):
         return jsonify(message="Course not found"), 404
 
 
+@course_bp.route("/courses/<int:course_id>/path")
+def learning_path(course_id):
+    course = Course.get_course_by_id(course_id)
+    if not course:
+        return jsonify(message="Course not found"), 404
+
+    service = LearningPathService()
+    if current_user.is_authenticated:
+        path = service.path_for_user(current_user.id, course_id)
+    else:
+        path = service.build_path(course_id)
+
+    return render_template("learning_path.html", course=course, path=path)
+
+
 @course_bp.route("/courses/add", methods=["GET", "POST"])
 def add_course():
     if request.method == "POST":
@@ -28,14 +69,14 @@ def add_course():
         url = request.form["url"]
         category = request.form["category"]
         difficulty = request.form["difficulty"]
-        duration = float(request.form["duration"])
-        rating = float(request.form["rating"])
+        duration = request.form.get("duration", type=float)
+        rating = request.form.get("rating", type=float)
 
         course = Course.add_course(
             title, description, provider, url, category, difficulty, duration, rating
         )
 
-        return jsonify(course_id=course.id), 201
+        return redirect(url_for("course.get_course", course_id=course.id))
 
     return render_template("add_course.html")
 
@@ -44,7 +85,13 @@ def add_course():
 def search_courses():
     keyword = request.args.get("keyword", "")
     courses = Course.search_courses(keyword)
-    return render_template("course_list.html", courses=courses)
+    categories, difficulties = _filter_options()
+    return render_template(
+        "course_list.html",
+        courses=courses,
+        categories=categories,
+        difficulties=difficulties,
+    )
 
 
 @course_bp.route("/courses/filter")
@@ -61,11 +108,23 @@ def filter_courses():
     else:
         courses = Course.query.all()
 
-    return render_template("course_list.html", courses=courses)
+    categories, difficulties = _filter_options()
+    return render_template(
+        "course_list.html",
+        courses=courses,
+        categories=categories,
+        difficulties=difficulties,
+    )
 
 
 @course_bp.route("/courses/top_rated")
 def get_top_rated_courses():
     limit = int(request.args.get("limit", 10))
     courses = Course.get_top_rated_courses(limit)
-    return render_template("course_list.html", courses=courses)
+    categories, difficulties = _filter_options()
+    return render_template(
+        "course_list.html",
+        courses=courses,
+        categories=categories,
+        difficulties=difficulties,
+    )

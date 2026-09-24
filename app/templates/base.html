@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="csrf-token" content="{{ csrf_token() }}" />
     <title>{% block title %}教育推荐系统{% endblock %}</title>
     <link
       rel="stylesheet"
@@ -16,9 +17,10 @@
         <div class="container">
           <a href="{{ url_for('main.index') }}">首页</a>
           <a href="{{ url_for('course.get_all_courses') }}">课程列表</a>
-          <a href="{{ url_for('recommendation.user_recommendations') }}"
+          <a href="{{ url_for('recommendation.get_user_recommendations') }}"
             >我的推荐</a
           >
+          <a href="{{ url_for('recommendation.for_you') }}">为你推荐</a>
           {% if current_user.is_authenticated %}
           <a href="{{ url_for('user.profile') }}">个人中心</a>
           <a href="{{ url_for('user.logout') }}">退出登录</a>

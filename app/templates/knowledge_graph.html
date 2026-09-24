@@ -38,7 +38,7 @@ styles %}
 {% endblock %} {% block scripts %}
 <script src="https://d3js.org/d3.v6.min.js"></script>
 <script>
-  const graphData = {{ knowledge_graph_data | tojson }};
+  const initialGraph = {{ knowledge_graph_data | tojson }};
 
   const width = 800;
   const height = 600;
@@ -48,40 +48,47 @@ styles %}
     .attr("width", width)
     .attr("height", height);
 
-  const simulation = d3.forceSimulation(graphData.nodes)
-    .force("link", d3.forceLink(graphData.links).id(d => d.id))
-    .force("charge", d3.forceManyBody().strength(-100))
-    .force("center", d3.forceCenter(width / 2, height / 2));
+  function renderGraph(graphData) {
+    svg.selectAll("*").remove();
 
-  const link = svg.append("g")
-    .selectAll("line")
-    .data(graphData.links)
-    .join("line")
-    .attr("class", "link");
+    const nodes = graphData.nodes || [];
+    const links = graphData.links || [];
 
-  const node = svg.append("g")
-    .selectAll("g")
-    .data(graphData.nodes)
-    .join("g")
-    .call(drag(simulation));
+    const simulation = d3.forceSimulation(nodes)
+      .force("link", d3.forceLink(links).id(d => d.id).distance(80))
+      .force("charge", d3.forceManyBody().strength(-100))
+      .force("center", d3.forceCenter(width / 2, height / 2));
 
-  node.append("circle")
-    .attr("r", 20)
-    .attr("class", "node");
+    const link = svg.append("g")
+      .selectAll("line")
+      .data(links)
+      .join("line")
+      .attr("class", "link");
 
-  node.append("text")
-    .text(d => d.name);
+    const node = svg.append("g")
+      .selectAll("g")
+      .data(nodes)
+      .join("g")
+      .call(drag(simulation));
 
-  simulation.on("tick", () => {
-    link
-      .attr("x1", d => d.source.x)
-      .attr("y1", d => d.source.y)
-      .attr("x2", d => d.target.x)
-      .attr("y2", d => d.target.y);
+    node.append("circle")
+      .attr("r", 20)
+      .attr("class", "node");
 
-    node
-      .attr("transform", d => `translate(${d.x},${d.y})`);
-  });
+    node.append("text")
+      .text(d => d.name);
+
+    simulation.on("tick", () => {
+      link
+        .attr("x1", d => d.source.x)
+        .attr("y1", d => d.source.y)
+        .attr("x2", d => d.target.x)
+        .attr("y2", d => d.target.y);
+
+      node
+        .attr("transform", d => `translate(${d.x},${d.y})`);
+    });
+  }
 
   function drag(simulation) {
     function dragstarted(event) {
@@ -107,31 +114,47 @@ styles %}
       .on("end", dragended);
   }
 
+  renderGraph(initialGraph);
+
   const searchBtn = document.getElementById("search-btn");
   const searchInput = document.getElementById("search-input");
   const conceptName = document.getElementById("concept-name");
   const conceptDescription = document.getElementById("concept-description");
+  const conceptUrlTemplate = "{{ url_for('knowledge_graph.get_concept', name='__NAME__') }}";
+  const graphUrlTemplate = "{{ url_for('knowledge_graph.get_concept_graph', name='__NAME__') }}";
 
   searchBtn.addEventListener("click", () => {
     const keyword = searchInput.value.trim();
-    if (keyword !== "") {
-      fetch(`/knowledge_graph/concept/${keyword}`)
-        .then(response => response.json())
-        .then(data => {
-          if (data.name && data.description) {
-            conceptName.textContent = data.name;
-            conceptDescription.textContent = data.description;
-          } else {
-            conceptName.textContent = "";
-            conceptDescription.textContent = "概念未找到";
-          }
-        })
-        .catch(error => {
-          console.error("Error:", error);
-          conceptName.textContent = "";
-          conceptDescription.textContent = "获取概念详情时出错";
-        });
+    if (keyword === "") {
+      return;
     }
+    const encoded = encodeURIComponent(keyword);
+
+    fetch(conceptUrlTemplate.replace("__NAME__", encoded))
+      .then(response => response.json())
+      .then(data => {
+        if (data.name && data.description) {
+          conceptName.textContent = data.name;
+          conceptDescription.textContent = data.description;
+        } else {
+          conceptName.textContent = "";
+          conceptDescription.textContent = "概念未找到";
+        }
+      })
+      .catch(error => {
+        console.error("Error:", error);
+        conceptName.textContent = "";
+        conceptDescription.textContent = "获取概念详情时出错";
+      });
+
+    fetch(graphUrlTemplate.replace("__NAME__", encoded))
+      .then(response => response.json())
+      .then(data => {
+        if (data && data.nodes) {
+          renderGraph(data);
+        }
+      })
+      .catch(error => console.error("Error:", error));
   });
 </script>
 {% endblock %}

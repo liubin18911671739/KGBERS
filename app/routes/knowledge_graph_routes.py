@@ -7,13 +7,23 @@ knowledge_graph_bp = Blueprint("knowledge_graph", __name__)
 
 @knowledge_graph_bp.route("/knowledge_graph")
 def knowledge_graph():
-    return render_template("knowledge_graph.html")
+    graph_data = {"nodes": [], "links": []}
+    try:
+        neo4j_db = get_neo4j_db()
+        graph_data = KnowledgeGraph(neo4j_db).get_full_graph(limit=50)
+    except Exception:
+        # Neo4j 不可用时降级为空图,页面仍可访问。
+        pass
+    return render_template("knowledge_graph.html", knowledge_graph_data=graph_data)
 
 
 @knowledge_graph_bp.route("/knowledge_graph/concept", methods=["POST"])
 def create_concept():
-    name = request.json["name"]
-    description = request.json["description"]
+    payload = request.get_json(silent=True) or {}
+    name = payload.get("name")
+    description = payload.get("description")
+    if not name:
+        return jsonify(message="name is required"), 400
 
     neo4j_db = get_neo4j_db()
     kg = KnowledgeGraph(neo4j_db)
@@ -37,7 +47,7 @@ def get_concept(name):
 @knowledge_graph_bp.route("/knowledge_graph/concept/<name>/related")
 def get_related_concepts(name):
     relation_type = request.args.get("relation_type", "RELATED_TO")
-    limit = int(request.args.get("limit", 10))
+    limit = request.args.get("limit", 10, type=int)
 
     neo4j_db = get_neo4j_db()
     kg = KnowledgeGraph(neo4j_db)
@@ -52,7 +62,7 @@ def get_related_concepts(name):
 
 @knowledge_graph_bp.route("/knowledge_graph/concept/<name>/graph")
 def get_concept_graph(name):
-    depth = int(request.args.get("depth", 2))
+    depth = request.args.get("depth", 2, type=int)
 
     neo4j_db = get_neo4j_db()
     kg = KnowledgeGraph(neo4j_db)

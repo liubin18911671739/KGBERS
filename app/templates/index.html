@@ -7,7 +7,7 @@ block content %}
   <div class="featured-courses">
     <h2>精选课程</h2>
     <ul class="course-list">
-      {% for course in featured_courses %}
+      {% for course in top_rated_courses %}
       <li class="course-item">
         <h3 class="course-title">{{ course.title }}</h3>
         <p class="course-description">{{ course.description[:100] }}...</p>
@@ -24,7 +24,7 @@ block content %}
   <div class="top-recommendations">
     <h2>热门推荐</h2>
     <ul class="recommendation-list">
-      {% for recommendation in top_recommendations %}
+      {% for recommendation in recommended_courses %}
       <li class="recommendation-item">
         <p class="recommendation-course">{{ recommendation.course.title }}</p>
         <p class="recommendation-score">推荐得分: {{ recommendation.score }}</p>

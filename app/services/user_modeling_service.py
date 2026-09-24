@@ -4,7 +4,7 @@ from app.models.recommendation import Recommendation
 
 
 class UserService:
-    def get_user_profile(user_id):
+    def get_user_profile(self, user_id):
         user = User.get_user_by_id(user_id)
         if user:
             profile = {
@@ -16,7 +16,7 @@ class UserService:
         else:
             return None
 
-    def update_user_profile(user_id, profile_data):
+    def update_user_profile(self, user_id, profile_data):
         user = User.get_user_by_id(user_id)
         if user:
             user.username = profile_data.get("username", user.username)
@@ -27,7 +27,7 @@ class UserService:
         else:
             return False
 
-    def get_user_course_history(user_id):
+    def get_user_course_history(self, user_id):
         courses = (
             Course.query.join(Recommendation)
             .filter(Recommendation.user_id == user_id)
@@ -38,7 +38,7 @@ class UserService:
         ]
         return course_history
 
-    def get_user_recommendations(user_id, limit=10):
+    def get_user_recommendations(self, user_id, limit=10):
         recommendations = Recommendation.get_user_recommendations(user_id, limit)
         recommended_courses = [
             {"id": rec.course.id, "title": rec.course.title, "score": rec.score}
@@ -46,7 +46,7 @@ class UserService:
         ]
         return recommended_courses
 
-    def add_user_recommendation(user_id, course_id, score):
+    def add_user_recommendation(self, user_id, course_id, score):
         recommendation = Recommendation.add_recommendation(user_id, course_id, score)
         if recommendation:
             return {
@@ -58,7 +58,7 @@ class UserService:
         else:
             return None
 
-    def update_user_recommendation(recommendation_id, score):
+    def update_user_recommendation(self, recommendation_id, score):
         recommendation = Recommendation.query.get(recommendation_id)
         if recommendation:
             recommendation.score = score
@@ -66,3 +66,6 @@ class UserService:
             return True
         else:
             return False
+
+
+UserModelingService = UserService

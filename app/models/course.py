@@ -1,6 +1,15 @@
 from app import db
 
 
+course_prerequisites = db.Table(
+    "course_prerequisites",
+    db.Column("course_id", db.Integer, db.ForeignKey("course.id"), primary_key=True),
+    db.Column(
+        "prerequisite_id", db.Integer, db.ForeignKey("course.id"), primary_key=True
+    ),
+)
+
+
 class Course(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(100), nullable=False)
@@ -12,8 +21,34 @@ class Course(db.Model):
     duration = db.Column(db.Float)
     rating = db.Column(db.Float)
 
+    prerequisites = db.relationship(
+        "Course",
+        secondary=course_prerequisites,
+        primaryjoin=id == course_prerequisites.c.course_id,
+        secondaryjoin=id == course_prerequisites.c.prerequisite_id,
+        backref="dependents",
+    )
+
     def __repr__(self):
         return f"<Course {self.title}>"
+
+    def save(self):
+        db.session.add(self)
+        db.session.commit()
+        return self
+
+    def delete(self):
+        db.session.delete(self)
+        db.session.commit()
+
+    def add_prerequisite(self, prerequisite):
+        if prerequisite and prerequisite not in self.prerequisites:
+            self.prerequisites.append(prerequisite)
+            db.session.commit()
+        return self
+
+    def get_prerequisites(self):
+        return list(self.prerequisites)
 
     @staticmethod
     def add_course(

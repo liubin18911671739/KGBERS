@@ -1,0 +1,19 @@
+{% extends 'base.html' %} {% block title %}个人中心{% endblock %} {% block
+content %}
+<div class="container">
+  <h1>个人中心</h1>
+
+  <div class="profile-info">
+    <h2>基本信息</h2>
+    <p><strong>用户名:</strong> {{ user.username }}</p>
+    <p><strong>电子邮件:</strong> {{ user.email }}</p>
+    <p><strong>角色:</strong> {{ user.role }}</p>
+  </div>
+
+  <div class="profile-actions">
+    <a href="{{ url_for('recommendation.get_user_recommendations') }}" class="btn"
+      >我的推荐</a
+    >
+  </div>
+</div>
+{% endblock %}

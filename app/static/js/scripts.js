@@ -1,3 +1,9 @@
+// 读取 base.html 注入的 CSRF token
+function csrfToken() {
+  const meta = document.querySelector('meta[name="csrf-token"]');
+  return meta ? meta.getAttribute("content") : "";
+}
+
 // 添加课程推荐
 function addRecommendation(courseId) {
   const score = prompt("请输入推荐得分 (0-5):");
@@ -8,10 +14,11 @@ function addRecommendation(courseId) {
       score: parseFloat(score),
     };
 
-    fetch("/recommendations", {
+    fetch("/recommendation/recommendations/add", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "X-CSRFToken": csrfToken(),
       },
       body: JSON.stringify(data),
     })
@@ -39,10 +46,11 @@ function updateRecommendation(recommendationId) {
       score: parseFloat(score),
     };
 
-    fetch(`/recommendations/${recommendationId}`, {
+    fetch(`/recommendation/recommendations/${recommendationId}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
+        "X-CSRFToken": csrfToken(),
       },
       body: JSON.stringify(data),
     })
@@ -65,8 +73,11 @@ function updateRecommendation(recommendationId) {
 // 删除课程推荐
 function deleteRecommendation(recommendationId) {
   if (confirm("确定要删除该推荐吗?")) {
-    fetch(`/recommendations/${recommendationId}`, {
+    fetch(`/recommendation/recommendations/${recommendationId}`, {
       method: "DELETE",
+      headers: {
+        "X-CSRFToken": csrfToken(),
+      },
     })
       .then((response) => response.json())
       .then((result) => {

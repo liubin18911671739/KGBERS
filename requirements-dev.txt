@@ -1,0 +1,23 @@
+# 测试 / CI 用的精简依赖(不包含 pandas / gensim / scipy / nltk 等重型 ML 包)。
+
+# Flask 2.0.1 需要旧版 Werkzeug / Jinja2 等,否则导入失败。
+Werkzeug==2.0.3
+Jinja2==3.0.3
+itsdangerous==2.0.1
+click==8.0.4
+MarkupSafe==2.0.1
+SQLAlchemy==1.4.46
+WTForms==2.3.3
+
+flask==2.0.1
+flask-sqlalchemy==2.5.1
+flask-migrate==3.1.0
+flask-login==0.5.0
+flask-wtf==0.15.1
+flask-bootstrap==3.3.7.1
+
+py2neo==2021.2.4
+requests==2.26.0
+python-dotenv==0.19.0
+
+pytest==6.2.5

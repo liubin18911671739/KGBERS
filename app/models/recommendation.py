@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from app import db
 
 
@@ -13,6 +15,15 @@ class Recommendation(db.Model):
 
     def __repr__(self):
         return f"<Recommendation {self.user.username} - {self.course.title}>"
+
+    def save(self):
+        db.session.add(self)
+        db.session.commit()
+        return self
+
+    def delete(self):
+        db.session.delete(self)
+        db.session.commit()
 
     @staticmethod
     def add_recommendation(user_id, course_id, score):

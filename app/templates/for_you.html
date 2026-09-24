@@ -1,0 +1,78 @@
+{% extends 'base.html' %} {% block title %}为你推荐{% endblock %} {% block
+content %}
+<div class="container">
+  <h1>为你推荐</h1>
+  <p>基于你的学习记录、课程质量与知识图谱关联度生成的个性化推荐。</p>
+  <p class="course-meta">实验分组: {{ variant }}</p>
+
+  {% if recommendations %}
+  <ul class="recommendation-list">
+    {% for recommendation in recommendations %}
+    <li class="recommendation-item">
+      <div class="recommendation-course">
+        <h2>
+          <a
+            href="{{ url_for('course.get_course', course_id=recommendation.course_id) }}"
+            onclick="recordClick({{ recommendation.course_id }})"
+            >{{ recommendation.title }}</a
+          >
+        </h2>
+        <div class="course-meta">
+          <span>类别: {{ recommendation.category }}</span>
+          <span>难度: {{ recommendation.difficulty }}</span>
+        </div>
+      </div>
+      <div class="recommendation-details">
+        <p>推荐得分: {{ recommendation.score }}</p>
+        <form
+          action="{{ url_for('recommendation.submit_feedback') }}"
+          method="post"
+          class="feedback-form"
+        >
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+          <input
+            type="hidden"
+            name="course_id"
+            value="{{ recommendation.course_id }}"
+          />
+          <input type="hidden" name="variant" value="{{ variant }}" />
+          <label>
+            满意度:
+            <select name="rating">
+              {% for score in [1, 2, 3, 4, 5] %}
+              <option value="{{ score }}">{{ score }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <input type="text" name="comment" placeholder="可选评论" />
+          <button type="submit" class="btn">提交反馈</button>
+        </form>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p>暂无推荐,请先浏览并评价一些课程。</p>
+  {% endif %}
+
+  <p>
+    <a href="{{ url_for('recommendation.experiment_report') }}">查看实验报告</a>
+  </p>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  function recordClick(courseId) {
+    const url = "{{ url_for('recommendation.record_click', course_id=0) }}".replace(
+      "/0",
+      `/${courseId}`
+    );
+    // sendBeacon 无法设置自定义头,统一用 fetch 携带 CSRF token。
+    fetch(url, {
+      method: "POST",
+      headers: { "X-CSRFToken": "{{ csrf_token() }}" },
+      keepalive: true,
+    });
+  }
+</script>
+{% endblock %}

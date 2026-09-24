@@ -1,0 +1,24 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.9"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+      - name: Compile check
+        run: python -m compileall app run.py config.py
+      - name: Migrations smoke test
+        run: FLASK_APP=run.py flask db upgrade
+      - name: Run tests
+        run: FLASK_CONFIG=testing pytest tests -q

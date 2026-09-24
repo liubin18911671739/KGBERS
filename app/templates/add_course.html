@@ -1,0 +1,54 @@
+{% extends 'base.html' %} {% block title %}添加课程{% endblock %} {% block
+content %}
+<div class="container">
+  <h1>添加课程</h1>
+  <form action="{{ url_for('course.add_course') }}" method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+    <div class="form-group">
+      <label class="form-label" for="title">标题</label>
+      <input class="form-input" type="text" id="title" name="title" required />
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="description">描述</label>
+      <textarea class="form-input" id="description" name="description"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="provider">提供方</label>
+      <input class="form-input" type="text" id="provider" name="provider" />
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="url">课程链接</label>
+      <input class="form-input" type="url" id="url" name="url" />
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="category">类别</label>
+      <input class="form-input" type="text" id="category" name="category" />
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="difficulty">难度</label>
+      <input class="form-input" type="text" id="difficulty" name="difficulty" />
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="duration">时长(小时)</label>
+      <input
+        class="form-input"
+        type="number"
+        step="0.1"
+        id="duration"
+        name="duration"
+      />
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="rating">评分</label>
+      <input
+        class="form-input"
+        type="number"
+        step="0.1"
+        id="rating"
+        name="rating"
+      />
+    </div>
+    <button type="submit" class="form-submit">添加</button>
+  </form>
+</div>
+{% endblock %}

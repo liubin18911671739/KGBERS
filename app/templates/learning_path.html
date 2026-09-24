@@ -1,0 +1,30 @@
+{% extends 'base.html' %} {% block title %}学习路径 - {{ course.title }}{% endblock
+%} {% block content %}
+<div class="container">
+  <h1>学习路径:{{ course.title }}</h1>
+  <p>按先修关系生成的学习序列,建议自上而下依次学习。</p>
+
+  {% if path %}
+  <ol class="learning-path">
+    {% for step in path %}
+    <li class="course-item{% if step.completed %} completed{% endif %}">
+      <h3>
+        <a href="{{ url_for('course.get_course', course_id=step.course_id) }}"
+          >{{ step.title }}</a
+        >
+        {% if step.completed %}<span class="badge">已学</span>{% endif %}
+      </h3>
+      <div class="course-meta">
+        <span>类别: {{ step.category }}</span>
+        <span>难度: {{ step.difficulty }}</span>
+      </div>
+    </li>
+    {% endfor %}
+  </ol>
+  {% else %}
+  <p>暂无学习路径。</p>
+  {% endif %}
+
+  <p><a href="{{ url_for('course.get_course', course_id=course.id) }}">返回课程详情</a></p>
+</div>
+{% endblock %}

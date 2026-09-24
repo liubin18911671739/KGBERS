@@ -1,97 +1,105 @@
+# 项目目录结构
+
 ```
-kgbers/
+KGBERS/
+├── .github/
+│   └── workflows/
+│       └── ci.yml                     # GitHub Actions:安装 requirements-dev.txt 并运行 pytest
 ├── app/
-│   ├── __init__.py
+│   ├── __init__.py                    # create_app()、db/migrate/login_manager/bootstrap 单例、user_loader
+│   ├── commands.py                    # CLI:flask seed-db / import-courses / experiment-report
 │   ├── models/
 │   │   ├── __init__.py
-│   │   ├── knowledge_graph.py
-│   │   ├── user.py
-│   │   ├── course.py
-│   │   └── recommendation.py
+│   │   ├── user.py                    # User(SQLAlchemy)
+│   │   ├── course.py                  # Course(SQLAlchemy,含先修关系 prerequisites)
+│   │   ├── recommendation.py          # Recommendation(SQLAlchemy)
+│   │   ├── experiment.py              # ExperimentAssignment / Feedback / RecommendationEvent
+│   │   └── knowledge_graph.py         # KnowledgeGraph(py2neo 封装,非 SQLAlchemy 模型)
 │   ├── routes/
 │   │   ├── __init__.py
-│   │   ├── knowledge_graph_routes.py
-│   │   ├── user_routes.py
-│   │   ├── course_routes.py
-│   │   ├── main_routes.py
-│   │   └── recommendation_routes.py
+│   │   ├── main_routes.py             # 蓝图 main(无前缀)
+│   │   ├── user_routes.py             # 蓝图 user(/user)
+│   │   ├── course_routes.py           # 蓝图 course(/course,含学习路径)
+│   │   ├── recommendation_routes.py   # 蓝图 recommendation(/recommendation,含 for-you/反馈/报告)
+│   │   └── knowledge_graph_routes.py  # 蓝图 knowledge_graph(/knowledge-graph)
 │   ├── services/
 │   │   ├── __init__.py
-│   │   ├── knowledge_graph_service.py
-│   │   ├── user_modeling_service.py
-│   │   ├── course_analysis_service.py
-│   │   └── recommendation_service.py
+│   │   ├── user_modeling_service.py       # UserService(别名 UserModelingService)
+│   │   ├── course_analysis_service.py     # CourseAnalysisService
+│   │   ├── recommendation_service.py      # RecommendationService(混合推荐)
+│   │   ├── knowledge_graph_service.py     # KnowledgeService
+│   │   ├── learning_path_service.py       # LearningPathService(拓扑排序)
+│   │   ├── experiment_service.py          # ExperimentService(A/B + 反馈 + 报告)
+│   │   ├── topic_modeling_service.py      # TopicModelService(LDA / 词频回退)
+│   │   └── course_import_service.py       # CourseImportService(JSON 导入)
+│   ├── samples/
+│   │   └── mooc_courses.json          # 内置课程样例(导入回退)
 │   ├── utils/
 │   │   ├── __init__.py
-│   │   ├── neo4j_utils.py
-│   │   └── sqlite_utils.py
-│   test_recommendation.py├── templates/
+│   │   ├── neo4j_utils.py             # get_neo4j_graph / get_neo4j_db 等
+│   │   └── sqlite_utils.py            # 原生 sqlite3 工具(当前未被路由使用)
+│   ├── templates/
 │   │   ├── base.html
 │   │   ├── index.html
-│   │   ├── knowledge_graph.html
-│   │   ├── user_profile.html
+│   │   ├── about.html
+│   │   ├── contact.html
+│   │   ├── register.html
+│   │   ├── login.html
+│   │   ├── profile.html
 │   │   ├── course_list.html
-│   │   └── recommendation_list.html
+│   │   ├── course_detail.html
+│   │   ├── learning_path.html
+│   │   ├── add_course.html
+│   │   ├── recommendation_list.html
+│   │   ├── for_you.html
+│   │   ├── experiment_report.html
+│   │   ├── knowledge_graph.html
+│   │   └── user_profile.html          # 未被路由使用(路由渲染 profile.html)
 │   └── static/
 │       ├── css/
 │       │   └── styles.css
 │       └── js/
 │           └── scripts.js
-├── data/
-│   ├── neo4j/
+├── migrations/                        # Alembic 迁移(baseline)
+│   ├── env.py
+│   ├── alembic.ini
+│   └── versions/
+├── data/                              # 运行时生成,gitignored
 │   └── sqlite/
-├── docs/
+│       ├── app.db
+│       └── test.db
 ├── tests/
 │   ├── __init__.py
-│   ├── test_knowledge_graph.py
+│   ├── conftest.py                    # app / client fixture,禁用真实 Neo4j
+│   ├── test_recommendation.py
+│   ├── test_recommendation_algorithm.py
 │   ├── test_user_modeling.py
 │   ├── test_course_analysis.py
-│   └── test_recommendation.py
-├── config.py
-├── requirements.txt
-└── run.py
+│   ├── test_course_import.py
+│   ├── test_learning_path.py
+│   ├── test_experiment.py
+│   ├── test_topic_modeling.py
+│   └── test_knowledge_graph.py
+├── config.py                          # Config / Development / Testing / Production 与 config 字典
+├── run.py                             # 入口:加载 .env 后 create_app
+├── requirements.txt                   # 运行时依赖
+├── requirements-dev.txt               # 测试 / CI 精简依赖
+├── requirements-ml.txt                # 可选 LDA / NLP 依赖
+├── pytest.ini
+├── .env.example
+├── Dockerfile
+├── prompts.txt                        # 原始基金课题需求(中文)
+├── README.md
+├── TODO.md
+├── AGENTS.md
+└── LICENSE
 ```
 
-这个结构的主要组成部分如下:
+## 说明
 
-- `app`: Flask 应用的主要包。
-  - `models`: 定义数据模型和数据库交互。
-  - `routes`: 定义 Web 请求的路由和处理程序。
-  - `services`: 实现系统的核心服务,如知识图谱构建、学习者建模、课程分析、推荐生成等。
-  - `utils`: 工具模块,如数据库连接、日志记录等。
-  - `templates`: HTML 模板文件。
-  - `static`: 静态资源文件(CSS、JS、图片等)。
-- `data`: 存储数据库文件和相关数据。
-- `docs`: 项目文档。
-- `tests`: 单元测试和集成测试代码。
-- `config.py`: 配置文件。
-- `requirements.txt`: 项目依赖包列表。
-- `run.py`: Flask 应用的启动脚本。
-
-这个代码结构遵循了 Flask Web 应用的典型组织方式,同时也体现了教育推荐系统的主要功能模块。你可以参考这个结构来组织你的项目代码,并根据需要进行调整和扩展。在实现过程中,你还需要编写具体的模型定义、路由处理、服务逻辑、数据库操作等代码。
-
-接下来,我可以为你提供一些关键模块的示例代码,帮助你更好地理解系统的实现方式。ments.txt
-└── run.py
-
-```
-
-这个结构的主要组成部分如下:
-
-- `app`: Flask 应用的主要包。
-  - `models`: 定义数据模型和数据库交互。
-  - `routes`: 定义 Web 请求的路由和处理程序。
-  - `services`: 实现系统的核心服务,如知识图谱构建、学习者建模、课程分析、推荐生成等。
-  - `utils`: 工具模块,如数据库连接、日志记录等。
-  - `templates`: HTML 模板文件。
-  - `static`: 静态资源文件(CSS、JS、图片等)。
-- `data`: 存储数据库文件和相关数据。
-- `docs`: 项目文档。
-- `tests`: 单元测试和集成测试代码。
-- `config.py`: 配置文件。
-- `requirements.txt`: 项目依赖包列表。
-- `run.py`: Flask 应用的启动脚本。
-
-这个代码结构遵循了 Flask Web 应用的典型组织方式,同时也体现了教育推荐系统的主要功能模块。你可以参考这个结构来组织你的项目代码,并根据需要进行调整和扩展。在实现过程中,你还需要编写具体的模型定义、路由处理、服务逻辑、数据库操作等代码。
-
-接下来,我可以为你提供一些关键模块的示例代码,帮助你更好地理解系统的实现方式。
-```
+- `app`:Flask 应用主包。`models` 定义数据模型与实验/反馈模型;`routes` 定义蓝图与请求处理;`services` 实现核心业务(学习者建模、课程分析、推荐、知识图谱、学习路径、实验、主题建模、课程导入);`samples` 为离线课程样例;`utils` 提供数据库连接工具;`templates` / `static` 为前端资源。
+- `migrations`:Flask-Migrate/Alembic 迁移,开发/生产用 `flask db upgrade` 应用。
+- `data`:SQLite 数据库文件;测试环境由 `create_app()` 自动建表,目录自动创建。
+- `tests`:pytest 用例,`conftest.py` 统一提供 fixture。
+- `config.py`:按 `FLASK_CONFIG` 选择配置(`default` → `DevelopmentConfig`)。
+- `run.py`:唯一入口,Dockerfile 亦通过 `gunicorn run:app` 使用它。

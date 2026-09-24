@@ -1,88 +1,73 @@
-import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
+
 from app.models.knowledge_graph import KnowledgeGraph
-from app.utils.neo4j_utils import get_neo4j_graph
 
 
-class TestKnowledgeGraph(unittest.TestCase):
-
-    def setUp(self):
-        self.graph = get_neo4j_graph("bolt://localhost:7687", "neo4j", "password")
-        self.knowledge_graph = KnowledgeGraph(self.graph)
-
-    def test_create_concept(self):
-        with patch.object(self.graph, "create") as mock_create:
-            mock_node = MagicMock()
-            mock_create.return_value = mock_node
-
-            concept = self.knowledge_graph.create_concept(
-                "Python", "Programming language"
-            )
-
-            mock_create.assert_called_once()
-            self.assertEqual(concept, mock_node)
-
-    def test_find_concept(self):
-        with patch.object(self.graph.nodes, "match") as mock_match:
-            mock_node = MagicMock()
-            mock_match.return_value.first.return_value = mock_node
-
-            concept = self.knowledge_graph.find_concept("Python")
-
-            mock_match.assert_called_once_with("Concept", name="Python")
-            self.assertEqual(concept, mock_node)
-
-    def test_find_related_concepts(self):
-        mock_concept = MagicMock()
-        mock_concept.__getitem__.return_value = "Python"
-
-        with patch.object(self.graph, "run") as mock_run:
-            mock_result = MagicMock()
-            mock_result.data.return_value = [
-                {"c2": {"name": "Flask"}},
-                {"c2": {"name": "Django"}},
-            ]
-            mock_run.return_value = mock_result
-
-            related_concepts = self.knowledge_graph.find_related_concepts(
-                mock_concept, "RELATED_TO", 2
-            )
-
-            expected_query = """
-                MATCH (c1:Concept {name: $concept_name})-[:RELATED_TO]-(c2:Concept)
-                RETURN c2
-                LIMIT 2
-            """
-            mock_run.assert_called_once_with(expected_query, concept_name="Python")
-            self.assertEqual(related_concepts, [{"name": "Flask"}, {"name": "Django"}])
-
-    def test_get_concept_graph(self):
-        mock_concept = MagicMock()
-        mock_concept.__getitem__.return_value = "Python"
-
-        with patch.object(self.graph, "run") as mock_run:
-            mock_result = MagicMock()
-            mock_result.data.return_value = [
-                {"c": {"name": "Python"}, "related": {"name": "Flask"}},
-                {"c": {"name": "Python"}, "related": {"name": "Django"}},
-            ]
-            mock_run.return_value = mock_result
-
-            concept_graph = self.knowledge_graph.get_concept_graph(mock_concept, 2)
-
-            expected_query = """
-                MATCH (c:Concept {name: $concept_name})-[*1..2]-(related)
-                RETURN c, related
-            """
-            mock_run.assert_called_once_with(expected_query, concept_name="Python")
-            expected_nodes = [{"name": "Python"}, {"name": "Flask"}, {"name": "Django"}]
-            expected_edges = [
-                ({"name": "Python"}, {"name": "Flask"}),
-                ({"name": "Python"}, {"name": "Django"}),
-            ]
-            self.assertEqual(concept_graph["nodes"], expected_nodes)
-            self.assertEqual(concept_graph["edges"], expected_edges)
+def _knowledge_graph():
+    graph = MagicMock()
+    return graph, KnowledgeGraph(graph)
 
 
-if __name__ == "__main__":
-    unittest.main()
+def test_create_concept_returns_node():
+    graph, kg = _knowledge_graph()
+
+    node = kg.create_concept("Python", "Programming language")
+
+    graph.create.assert_called_once()
+    assert node["name"] == "Python"
+
+
+def test_find_concept():
+    graph, kg = _knowledge_graph()
+    graph.nodes.match.return_value.first.return_value = {"name": "Python"}
+
+    assert kg.find_concept("Python") == {"name": "Python"}
+    graph.nodes.match.assert_called_once_with("Concept", name="Python")
+
+
+def test_find_related_concepts():
+    graph, kg = _knowledge_graph()
+    graph.run.return_value.data.return_value = [
+        {"c2": {"name": "Flask"}},
+        {"c2": {"name": "Django"}},
+    ]
+
+    result = kg.find_related_concepts({"name": "Python"}, "RELATED_TO", 2)
+
+    assert result == [
+        {"id": "Flask", "name": "Flask", "description": None},
+        {"id": "Django", "name": "Django", "description": None},
+    ]
+    query = graph.run.call_args.args[0]
+    assert "RELATED_TO" in query
+    assert "LIMIT 2" in query
+    assert graph.run.call_args.kwargs == {"concept_name": "Python"}
+
+
+def test_get_concept_graph():
+    graph, kg = _knowledge_graph()
+    graph.run.return_value.data.return_value = [
+        {"c": {"name": "Python"}, "related": {"name": "Flask"}},
+        {"c": {"name": "Python"}, "related": {"name": "Django"}},
+    ]
+
+    result = kg.get_concept_graph({"name": "Python"}, 2)
+
+    assert {node["id"] for node in result["nodes"]} == {"Python", "Flask", "Django"}
+    assert {"source": "Python", "target": "Flask"} in result["links"]
+    assert {"source": "Python", "target": "Django"} in result["links"]
+
+
+def test_get_full_graph():
+    graph, kg = _knowledge_graph()
+    graph.run.return_value.data.return_value = [
+        {"c": {"name": "A"}, "d": {"name": "B"}}
+    ]
+
+    result = kg.get_full_graph(limit=5)
+
+    assert result["nodes"] == [
+        {"id": "A", "name": "A", "description": None},
+        {"id": "B", "name": "B", "description": None},
+    ]
+    assert result["links"] == [{"source": "A", "target": "B"}]

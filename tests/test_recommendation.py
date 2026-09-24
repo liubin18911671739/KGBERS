@@ -1,149 +1,75 @@
-import unittest
-from unittest.mock import MagicMock, patch
+from app.models.course import Course
+from app.models.recommendation import Recommendation
+from app.models.user import User
 from app.services.recommendation_service import RecommendationService
 
 
-class TestRecommendation(unittest.TestCase):
-
-    def setUp(self):
-        self.recommendation_service = RecommendationService()
-
-    def test_get_user_recommendations(self):
-        user_id = 1
-        limit = 2
-        expected_recommendations = [
-            {"id": 1, "title": "Python for Beginners", "score": 4.5},
-            {"id": 2, "title": "Advanced Python Programming", "score": 4.2},
-        ]
-
-        with patch(
-            "app.services.recommendation_service.Recommendation"
-        ) as mock_recommendation:
-            mock_recommendation.query.filter_by.return_value.order_by.return_value.limit.return_value.all.return_value = [
-                MagicMock(
-                    course=MagicMock(id=1, title="Python for Beginners"), score=4.5
-                ),
-                MagicMock(
-                    course=MagicMock(id=2, title="Advanced Python Programming"),
-                    score=4.2,
-                ),
-            ]
-
-            recommendations = self.recommendation_service.get_user_recommendations(
-                user_id, limit
-            )
-
-            self.assertEqual(recommendations, expected_recommendations)
-            mock_recommendation.query.filter_by.assert_called_once_with(user_id=user_id)
-            mock_recommendation.query.filter_by.return_value.order_by.assert_called_once_with(
-                mock_recommendation.score.desc()
-            )
-            mock_recommendation.query.filter_by.return_value.order_by.return_value.limit.assert_called_once_with(
-                limit
-            )
-
-    def test_get_course_recommendations(self):
-        course_id = 1
-        limit = 2
-        expected_recommendations = [
-            {"id": 1, "title": "Data Science Fundamentals", "score": 4.7},
-            {"id": 2, "title": "Machine Learning with Python", "score": 4.5},
-        ]
-
-        with patch(
-            "app.services.recommendation_service.Recommendation"
-        ) as mock_recommendation:
-            mock_recommendation.query.filter_by.return_value.order_by.return_value.limit.return_value.all.return_value = [
-                MagicMock(
-                    course=MagicMock(id=1, title="Data Science Fundamentals"), score=4.7
-                ),
-                MagicMock(
-                    course=MagicMock(id=2, title="Machine Learning with Python"),
-                    score=4.5,
-                ),
-            ]
-
-            recommendations = self.recommendation_service.get_course_recommendations(
-                course_id, limit
-            )
-
-            self.assertEqual(recommendations, expected_recommendations)
-            mock_recommendation.query.filter_by.assert_called_once_with(
-                course_id=course_id
-            )
-            mock_recommendation.query.filter_by.return_value.order_by.assert_called_once_with(
-                mock_recommendation.score.desc()
-            )
-            mock_recommendation.query.filter_by.return_value.order_by.return_value.limit.assert_called_once_with(
-                limit
-            )
-
-    def test_get_top_recommendations(self):
-        limit = 2
-        expected_recommendations = [
-            {"id": 1, "title": "Python for Data Analysis", "score": 4.9},
-            {"id": 2, "title": "Web Development with Django", "score": 4.8},
-        ]
-
-        with patch(
-            "app.services.recommendation_service.Recommendation"
-        ) as mock_recommendation:
-            mock_recommendation.query.order_by.return_value.limit.return_value.all.return_value = [
-                MagicMock(
-                    course=MagicMock(id=1, title="Python for Data Analysis"), score=4.9
-                ),
-                MagicMock(
-                    course=MagicMock(id=2, title="Web Development with Django"),
-                    score=4.8,
-                ),
-            ]
-
-            recommendations = self.recommendation_service.get_top_recommendations(limit)
-
-            self.assertEqual(recommendations, expected_recommendations)
-            mock_recommendation.query.order_by.assert_called_once_with(
-                mock_recommendation.score.desc()
-            )
-            mock_recommendation.query.order_by.return_value.limit.assert_called_once_with(
-                limit
-            )
-
-    def test_add_recommendation(self):
-        user_id = 1
-        course_id = 1
-        score = 4.5
-
-        with patch("app.services.recommendation_service.User") as mock_user:
-            with patch("app.services.recommendation_service.Course") as mock_course:
-                with patch(
-                    "app.services.recommendation_service.Recommendation"
-                ) as mock_recommendation:
-                    mock_user_instance = MagicMock()
-                    mock_course_instance = MagicMock()
-                    mock_recommendation_instance = MagicMock(
-                        id=1, user_id=user_id, course_id=course_id, score=score
-                    )
-                    mock_user.query.get.return_value = mock_user_instance
-                    mock_course.query.get.return_value = mock_course_instance
-                    mock_recommendation.return_value = mock_recommendation_instance
-
-                    recommendation = self.recommendation_service.add_recommendation(
-                        user_id, course_id, score
-                    )
-
-                    self.assertEqual(recommendation["id"], 1)
-                    self.assertEqual(recommendation["user_id"], user_id)
-                    self.assertEqual(recommendation["course_id"], course_id)
-                    self.assertEqual(recommendation["score"], score)
-                    mock_user.query.get.assert_called_once_with(user_id)
-                    mock_course.query.get.assert_called_once_with(course_id)
-                    mock_recommendation.assert_called_once_with(
-                        user=mock_user_instance,
-                        course=mock_course_instance,
-                        score=score,
-                    )
-                    mock_recommendation_instance.save.assert_called_once()
+def _fixtures():
+    user = User.add_user("alice", "alice@example.com", "pw")
+    c1 = Course.add_course("C1", "d", "p", "u", "编程", "beginner", 10, 4.5)
+    c2 = Course.add_course("C2", "d", "p", "u", "编程", "advanced", 10, 4.0)
+    c3 = Course.add_course("C3", "d", "p", "u", "艺术", "beginner", 10, 3.0)
+    return user, c1, c2, c3
 
 
-if __name__ == "__main__":
-    unittest.main()
+def test_get_user_recommendations_orders_by_score(app):
+    user, c1, c2, _ = _fixtures()
+    Recommendation.add_recommendation(user.id, c1.id, 3.0)
+    Recommendation.add_recommendation(user.id, c2.id, 5.0)
+
+    recommendations = RecommendationService().get_user_recommendations(user.id)
+
+    assert [r.course_id for r in recommendations] == [c2.id, c1.id]
+    assert all(isinstance(r, Recommendation) for r in recommendations)
+
+
+def test_get_course_recommendations(app):
+    user, c1, _, _ = _fixtures()
+    other = User.add_user("bob", "bob@example.com", "pw")
+    Recommendation.add_recommendation(user.id, c1.id, 3.0)
+    Recommendation.add_recommendation(other.id, c1.id, 5.0)
+
+    recommendations = RecommendationService().get_course_recommendations(c1.id)
+
+    assert [r.user_id for r in recommendations] == [other.id, user.id]
+
+
+def test_get_top_recommendations(app):
+    user, c1, c2, c3 = _fixtures()
+    Recommendation.add_recommendation(user.id, c1.id, 1.0)
+    Recommendation.add_recommendation(user.id, c2.id, 5.0)
+    Recommendation.add_recommendation(user.id, c3.id, 3.0)
+
+    recommendations = RecommendationService().get_top_recommendations(limit=2)
+
+    assert [r.course_id for r in recommendations] == [c2.id, c3.id]
+
+
+def test_add_recommendation_returns_model(app):
+    user, c1, _, _ = _fixtures()
+
+    recommendation = RecommendationService().add_recommendation(user.id, c1.id, 4.2)
+
+    assert isinstance(recommendation, Recommendation)
+    assert recommendation.user_id == user.id
+    assert recommendation.course_id == c1.id
+    assert recommendation.score == 4.2
+
+
+def test_add_recommendation_missing_user_returns_none(app):
+    _, c1, _, _ = _fixtures()
+
+    assert RecommendationService().add_recommendation(9999, c1.id, 1.0) is None
+
+
+def test_update_and_delete_recommendation(app):
+    user, c1, _, _ = _fixtures()
+    recommendation = RecommendationService().add_recommendation(user.id, c1.id, 2.0)
+    assert recommendation is not None
+
+    updated = RecommendationService().update_recommendation(recommendation.id, 4.0)
+    assert updated is not None
+    assert updated.score == 4.0
+
+    assert RecommendationService().delete_recommendation(recommendation.id) is True
+    assert RecommendationService().delete_recommendation(recommendation.id) is False

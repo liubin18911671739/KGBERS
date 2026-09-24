@@ -3,19 +3,19 @@ from app.utils.neo4j_utils import get_neo4j_db
 
 
 class KnowledgeService:
-    def create_concept(name, description):
+    def create_concept(self, name, description):
         neo4j_db = get_neo4j_db()
         kg = KnowledgeGraph(neo4j_db)
         concept = kg.create_concept(name, description)
         return concept
 
-    def get_concept(name):
+    def get_concept(self, name):
         neo4j_db = get_neo4j_db()
         kg = KnowledgeGraph(neo4j_db)
         concept = kg.find_concept(name)
         return concept
 
-    def get_related_concepts(name, relation_type, limit):
+    def get_related_concepts(self, name, relation_type, limit):
         neo4j_db = get_neo4j_db()
         kg = KnowledgeGraph(neo4j_db)
         concept = kg.find_concept(name)
@@ -26,7 +26,7 @@ class KnowledgeService:
         else:
             return None
 
-    def get_concept_graph(name, depth):
+    def get_concept_graph(self, name, depth):
         neo4j_db = get_neo4j_db()
         kg = KnowledgeGraph(neo4j_db)
         concept = kg.find_concept(name)
@@ -37,7 +37,7 @@ class KnowledgeService:
         else:
             return None
 
-    def create_relation(start_node_name, end_node_name, relation_type):
+    def create_relation(self, start_node_name, end_node_name, relation_type):
         neo4j_db = get_neo4j_db()
         kg = KnowledgeGraph(neo4j_db)
         start_node = kg.find_concept(start_node_name)

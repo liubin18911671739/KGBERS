@@ -1,0 +1,33 @@
+{% extends 'base.html' %} {% block title %}{{ course.title }}{% endblock %} {%
+block content %}
+<div class="container">
+  <h1>{{ course.title }}</h1>
+  <p>{{ course.description }}</p>
+
+  <div class="course-meta">
+    <span>提供方: {{ course.provider }}</span>
+    <span>类别: {{ course.category }}</span>
+    <span>难度: {{ course.difficulty }}</span>
+    <span>时长: {{ course.duration }} 小时</span>
+    <span>评分: {{ course.rating }}</span>
+  </div>
+
+  {% if course.url %}
+  <p>
+    <a class="btn" href="{{ course.url }}" target="_blank" rel="noopener"
+      >前往课程</a
+    >
+  </p>
+  {% endif %}
+
+  <p>
+    <a
+      class="btn"
+      href="{{ url_for('course.learning_path', course_id=course.id) }}"
+      >查看学习路径</a
+    >
+  </p>
+
+  <p><a href="{{ url_for('course.get_all_courses') }}">返回课程列表</a></p>
+</div>
+{% endblock %}

@@ -17,8 +17,8 @@ COPY . .
 EXPOSE 5000
 
 # Set environment variables (if needed)
-ENV FLASK_APP=wsgi.py
+ENV FLASK_APP=run.py
 ENV FLASK_ENV=production
 
-# Run the Flask app
-CMD ["flask", "run", "--host=0.0.0.0"]
+# Run the app with gunicorn
+CMD ["gunicorn", "-b", "0.0.0.0:5000", "run:app"]

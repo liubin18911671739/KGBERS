@@ -1,3 +1,5 @@
+import os
+
 from py2neo import Graph
 
 
@@ -11,6 +13,18 @@ def get_neo4j_graph(uri, user, password):
     :return: py2neo.Graph 对象
     """
     return Graph(uri, auth=(user, password))
+
+
+def get_neo4j_db():
+    """
+    使用 NEO4J_* 环境变量创建 Graph 对象,未设置时回退到本地默认值。
+
+    :return: py2neo.Graph 对象
+    """
+    uri = os.environ.get("NEO4J_URI", "bolt://localhost:7687")
+    user = os.environ.get("NEO4J_USER", "neo4j")
+    password = os.environ.get("NEO4J_PASSWORD", "password")
+    return get_neo4j_graph(uri, user, password)
 
 
 def run_query(graph, query, parameters=None):

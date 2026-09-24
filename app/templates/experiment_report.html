@@ -1,0 +1,36 @@
+{% extends 'base.html' %} {% block title %}实验报告{% endblock %} {% block
+content %}
+<div class="container">
+  <h1>实验报告:{{ experiment }}</h1>
+  <p>对比不同推荐策略的满意度与点击率。</p>
+
+  <table class="experiment-report">
+    <thead>
+      <tr>
+        <th>分组</th>
+        <th>用户数</th>
+        <th>反馈数</th>
+        <th>平均满意度</th>
+        <th>曝光</th>
+        <th>点击</th>
+        <th>CTR</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for variant, metrics in report.items() %}
+      <tr>
+        <td>{{ variant }}</td>
+        <td>{{ metrics.users }}</td>
+        <td>{{ metrics.feedback_count }}</td>
+        <td>{{ metrics.avg_rating if metrics.avg_rating is not none else '-' }}</td>
+        <td>{{ metrics.impressions }}</td>
+        <td>{{ metrics.clicks }}</td>
+        <td>{{ metrics.ctr if metrics.ctr is not none else '-' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <p><a href="{{ url_for('recommendation.for_you') }}">返回为你推荐</a></p>
+</div>
+{% endblock %}

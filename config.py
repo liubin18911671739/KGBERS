@@ -18,10 +18,11 @@ class Config:
     NEO4J_USER = os.environ.get("NEO4J_USER") or "neo4j"
     NEO4J_PASSWORD = os.environ.get("NEO4J_PASSWORD") or "your-neo4j-password"
 
-    # 课程数据爬取配置
+    # 课程数据爬取配置(逗号分隔的 URL 或本地文件路径;为空则使用内置样例)
     COURSE_DATA_URLS = [
-        "https://www.example.com/courses",
-        # 添加更多课程数据源的 URL
+        url.strip()
+        for url in os.environ.get("COURSE_DATA_URLS", "").split(",")
+        if url.strip()
     ]
 
     # 推荐系统参数配置

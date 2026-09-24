@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template
-from app.services.course_analysis_service import CourseAnalysisService
+from app.models.course import Course
 from app.services.recommendation_service import RecommendationService
 
 main_bp = Blueprint("main", __name__)
@@ -7,10 +7,9 @@ main_bp = Blueprint("main", __name__)
 
 @main_bp.route("/")
 def index():
-    course_service = CourseAnalysisService()
     recommendation_service = RecommendationService()
 
-    top_rated_courses = course_service.get_top_rated_courses(limit=5)
+    top_rated_courses = Course.get_top_rated_courses(limit=5)
     recommended_courses = recommendation_service.get_top_recommendations(limit=5)
 
     return render_template(
