@@ -1,63 +1,131 @@
-我明白你的需求。这是一个利用知识图谱技术来实现个性化在线教育推荐的系统。根据你提供的信息,我将尝试给出一个较为详细的系统设计方案,供你参考。
+# KGBERS — 知识图谱驱动的个性化在线教育推荐系统
 
-系统总体架构设计:
+> 基金项目「知识图谱驱动的个性化在线教育推荐系统研究」的研究脚手架。
+>
+> ✅ 应用可启动、页面可访问、测试通过（`pytest` 全绿）。推荐算法为纯 Python 混合实现（内容 + 协同 + 可选知识图谱），ML/NLP 重型模块仍在路线图中。首次上手请先阅读 [TODO.md](TODO.md) 与下方「路线图」。
 
-1. Web 框架:Flask
-2. UI 框架:Bootstrap,参考 Google 风格设计
-3. 图数据库:Neo4j,存储教育知识图谱
-4. 关系型数据库:SQLite,存储用户信息、日志等结构化数据
-5. 数据来源:MOOC 平台的教学活动多模态数据
+## 项目简介
 
-系统主要模块设计:
+KGBERS（Knowledge Graph based Education Recommendation System）尝试用 **Neo4j 教育知识图谱 + SQLite 学习者数据** 为在线学习（MOOC）场景提供个性化课程推荐。原始需求见 `prompts.txt`。
 
-一、教育知识图谱构建模块
+规划中的六大模块：
 
-1. 定义课程知识本体,设计知识类型(如概念、定理、例题)和关系(如包含、先修、同类)等。可以采用 RDF、OWL 等本体描述语言。
+1. 教育知识图谱构建（课程知识点、先修关系等）
+2. 学习者建模（知识水平、兴趣、画像）
+3. 课程内容理解（抓取、主题建模、课程知识图谱）
+4. 个性化推荐引擎（语义相似度、路径/难度约束、排序）
+5. 用户交互界面（知识地图、推荐列表/详情、进度跟踪）
+6. 系统运维与评估（A/B 测试、满意度评估）
 
-2. 从教材、课件等半结构化数据中抽取知识三元组,如<微积分, 包含, 导数>。可以使用正则表达式、句法分析等 NLP 技术,再人工校验。
+**现状**：前 5 个模块均有可运行的骨架实现；推荐引擎为内容/协同/图谱混合（无 Neo4j 时自动降级）。第 6 个模块（A/B 测试、满意度评估）尚未实现，见「路线图」。
 
-3. 将抽取的知识存入 Neo4j 图数据库,提供知识检索、推理、更新等 API 接口。
+## 技术栈
 
-二、学习者建模模块
+| 层 | 选型 |
+| --- | --- |
+| Web 框架 | Flask 2.0.1（`flask-sqlalchemy` / `flask-login` / `flask-wtf` / `flask-bootstrap`） |
+| 关系数据库 | SQLite（`data/sqlite/app.db`） |
+| 图数据库 | Neo4j（通过 `py2neo` 访问，可选；不可用时降级） |
+| 数据处理 | 纯 Python（推荐/主题抽取）；numpy / pandas / scikit-learn / gensim / nltk 列为预留依赖 |
+| 测试 | pytest |
+| Python | 3.9 |
 
-1. 设计题库,评估学习者对知识点的掌握情况。可用项目反应理论(IRT)等心理测量模型。
+## 目录结构
 
-2. 从日志数据中统计学习行为特征,如视频观看时长、习题正确率等,用协同过滤(CF)、矩阵分解(MF)等方法挖掘学习者兴趣。
+```
+KGBERS/
+├── .github/workflows/ci.yml     # GitHub Actions：安装 requirements-dev.txt 并运行 pytest
+├── app/
+│   ├── __init__.py              # create_app()、db / login_manager / bootstrap 单例、user_loader、db.create_all()
+│   ├── commands.py              # Flask CLI：flask seed-db
+│   ├── models/                  # User / Course / Recommendation（SQLAlchemy）+ KnowledgeGraph（py2neo）
+│   ├── routes/                  # 蓝图：main / user / course / recommendation / knowledge_graph
+│   ├── services/                # 学习者建模、课程分析、混合推荐、知识图谱服务
+│   ├── utils/                   # neo4j_utils.py（get_neo4j_db）/ sqlite_utils.py
+│   ├── templates/               # Jinja2 模板
+│   └── static/                  # css / js
+├── tests/                       # pytest 用例 + conftest.py
+├── data/                        # 运行时生成（gitignored）
+├── config.py                    # 配置类与 config 字典
+├── run.py                       # 入口（加载 .env 后 create_app）
+├── requirements.txt             # 运行时依赖（含重型 ML 包）
+├── requirements-dev.txt         # 测试/CI 精简依赖（不含 ML 包）
+├── pytest.ini
+├── .env.example                 # 环境变量样例
+├── Dockerfile                   # gunicorn run:app
+├── prompts.txt                  # 原始基金课题需求（中文）
+├── README.md / TODO.md / AGENTS.md
+└── LICENSE
+```
 
-3. 结合学习者知识状态和兴趣信息生成个性化学习者画像,定期更新。
+### 蓝图与路由前缀
 
-三、课程内容理解模块
+| 蓝图 | 前缀 | 主要路由 |
+| --- | --- | --- |
+| `main` | 无 | `/`、`/about`、`/contact` |
+| `user` | `/user` | `/register`、`/login`、`/logout`、`/profile`、`/users` |
+| `course` | `/course` | `/courses`、`/courses/<id>`、`/courses/add`、`/courses/search`、`/courses/filter`、`/courses/top_rated` |
+| `recommendation` | `/recommendation` | `/recommendations`、`/recommendations/for-you`、`/recommendations/course/<id>`、`/recommendations/top`、`/recommendations/add`、`/recommendations/<id>`（PUT/DELETE） |
+| `knowledge_graph` | `/knowledge-graph` | `/knowledge_graph`、`/knowledge_graph/concept[...]` |
 
-1. 爬虫抓取主流 MOOC 平台的课程数据,包括视频、课件、讲义、练习、讨论等。
+## 快速开始
 
-2. 对课程文本数据进行主题模型分析(如 LDA),对课程视频进行语音识别和知识点标注,最终形成课程语义表示。
+```bash
+# 1. 安装依赖（建议 Python 3.9 虚拟环境）
+pip install -r requirements.txt
 
-3. 构建课程知识图谱,节点为课程、知识点等,边为课程-知识点包含关系等。
+# 2. 可选：复制环境变量样例
+cp .env.example .env
 
-四、个性化推荐引擎
+# 3. 启动开发服务器（0.0.0.0:5000；data/sqlite 会自动创建并建表）
+python run.py
 
-1. 利用知识图谱的语义链接信息计算课程、知识点的相关度。引入基于路径、节点内容的相似性度量。
+# 4. 可选：写入示例课程 / 演示用户 / 推荐
+FLASK_APP=run.py flask seed-db      # 演示账号 demo / demo1234
+```
 
-2. 融合学习者兴趣、知识水平、认知能力,开发协同过滤、基于内容、知识的混合推荐算法。
+- 也可用 `FLASK_CONFIG=testing python run.py` 切换配置；`default` → `DevelopmentConfig`。
+- Neo4j 可选：`get_neo4j_db()` 读取 `NEO4J_URI/USER/PASSWORD`（默认 `bolt://localhost:7687` / `neo4j` / `password`）。知识图谱相关功能在 Neo4j 不可用时降级（空图 / 图谱信号置 0），不影响其他页面。
+- `.env` 会被 `run.py` 自动加载；也可直接在 shell 设置 `SECRET_KEY`、`DATABASE_URL`、`TEST_DATABASE_URL`、`NEO4J_*`、`FLASK_CONFIG`。
 
-3. 在推荐时考虑先修关系、知识点难度等约束,优化推荐的序列和学习路径。
+## 测试
 
-4. 对推荐结果进行排序,平衡相关性、新颖性、多样性。
+```bash
+FLASK_CONFIG=testing pytest tests     # 27 passed
+```
 
-五、用户交互界面
+- 用例为 pytest 函数风格，`tests/conftest.py` 提供 `app` / `client` fixture，并禁用真实 Neo4j 访问。
+- `TEST_DATABASE_URL` 指定测试库（默认 `data/sqlite/test.db`）。
+- CI 使用精简的 `requirements-dev.txt`（避免 pandas 1.3.3 等重型包在部分平台的构建问题）。
 
-1. 设计课程知识地图的可视化呈现方式,便于学习者浏览知识结构。
+## 推荐算法
 
-2. 开发推荐课程的列表页和详情页,提供课程预览、开始学习等功能。
+`RecommendationService.recommend_for_user()` 组合三类信号（权重 0.5 / 0.3 / 0.2）：
 
-3. 设计学习进度的追踪页面,并收集学习者的显式和隐式反馈,用于推荐优化 。
+1. **内容**：候选课程类别与用户已评价课程类别的匹配度、难度接近度。
+2. **协同/质量**：候选课程在所有用户评分中的平均值。
+3. **知识图谱**：候选课程与用户已学课程在 Neo4j 中共享 `HAS_TOPIC` 主题的 Jaccard 相似度（Neo4j 不可用时为 0）。
 
-六、系统运维与评估
+`CourseAnalysisService._perform_topic_modeling` 使用词频关键词抽取（中英文混合，无第三方 NLP 依赖）。
 
-1. 使用 A/B 测试等在线实验方法,评估不同推荐策略的效果。
+## 路线图 / 未来工作
 
-2. 通过问卷调查、用户访谈等方式搜集学习者使用反馈,分析推荐的满意度、学习效果提升等。
+以下为 `prompts.txt` 中规划但尚未实现的部分：
 
-3. 部署日志分析、性能监控等运维工具,保障系统的稳定性和可用性。
+- **学习路径规划**：基于先修关系生成推荐学习序列。
+- **A/B 测试**：在线实验与不同推荐策略的对照评估。
+- **满意度评估**：问卷 / 反馈采集与推荐效果分析。
+- **重型主题建模**：以 LDA / 句法分析替换当前的关键词抽取，接入 `gensim` / `nltk`。
+- **真实 MOOC 数据接入**：替换 `CourseAnalysisService.fetch_course_data` 的占位 URL。
+- **数据库迁移**：当前依赖 `db.create_all()`，如需演进可引入 Flask-Migrate。
 
-以上是我对"基于知识图谱的个性化教育推荐系统"的初步设计构想,涵盖了系统的整体架构、各功能模块、关键技术等方面。你可以在此基础上进一步细化和完善,形成更加具体和可执行的系统方案。在实现过程中,还需要关注数据质量、用户隐私保护、推荐解释等问题。希望这个设计对你的研究有所启发和帮助!
+## 文档说明
+
+- `prompts.txt`：原始基金课题需求（中文），是理解设计意图的最佳来源。
+- `file_structure.md`：项目目录结构说明。
+- `AGENTS.md`：面向 AI 协作/自动化工具的仓库操作要点。
+- `TODO.md`：已完成与待办事项。
+
+## 许可证
+
+MIT License，见 [LICENSE](LICENSE)。
