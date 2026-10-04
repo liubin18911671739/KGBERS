@@ -17,7 +17,7 @@ KGBERS（Knowledge Graph based Education Recommendation System）尝试用 **Neo
 5. 用户交互界面（知识地图、推荐列表/详情、进度跟踪）
 6. 系统运维与评估（A/B 测试、满意度评估）
 
-**现状**：六大模块均有可运行的实现。推荐引擎为内容/协同/图谱混合（无 Neo4j 时自动降级）；学习路径、A/B 测试与满意度评估已落地；LDA 主题建模与真实数据导入为可选/可配置增强。
+**现状**：六大模块均有可运行的实现。推荐引擎为内容/协同/图谱混合（无 Neo4j 时自动降级）；学习路径、A/B 测试与满意度评估已落地（支持多实验，`?experiment=` 切换）；LDA 主题建模（gensim / scikit-learn）与真实数据导入（JSON/CSV 公开数据集）为可选/可配置增强。
 
 ## 技术栈
 
@@ -94,7 +94,7 @@ FLASK_APP=run.py flask import-courses   # 从配置数据源/内置样例导入
 
 - 也可用 `FLASK_CONFIG=testing python run.py` 切换配置；`default` → `DevelopmentConfig`。
 - Neo4j 可选：`get_neo4j_db()` 读取 `NEO4J_URI/USER/PASSWORD`（默认 `bolt://localhost:7687` / `neo4j` / `password`）。知识图谱相关功能在 Neo4j 不可用时降级（空图 / 图谱信号置 0），不影响其他页面。
-- `.env` 会被 `run.py` 自动加载；也可直接在 shell 设置 `SECRET_KEY`、`DATABASE_URL`、`TEST_DATABASE_URL`、`NEO4J_*`、`COURSE_DATA_URLS`、`FLASK_CONFIG`。
+- `.env` 会被 `run.py` 自动加载；也可直接在 shell 设置 `SECRET_KEY`、`DATABASE_URL`、`TEST_DATABASE_URL`、`NEO4J_*`、`COURSE_DATA_URLS`、`TOPIC_MODEL_BACKEND`、`FLASK_CONFIG`。
 
 ## 测试
 
@@ -115,7 +115,7 @@ FLASK_CONFIG=testing pytest tests     # 48 passed, 1 skipped
 2. **协同/质量**：候选课程在所有用户评分中的平均值。
 3. **知识图谱**：候选课程与用户已学课程在 Neo4j 中共享 `HAS_TOPIC` 主题的 Jaccard 相似度（Neo4j 不可用时为 0）。
 
-`CourseAnalysisService._perform_topic_modeling` 默认使用词频关键词抽取；安装 `requirements-ml.txt`（gensim/nltk）后自动改用 **gensim LDA** 主题建模（`TopicModelService`），依赖缺失或语料不足时回退。
+`CourseAnalysisService._perform_topic_modeling` 默认使用词频关键词抽取；安装 `requirements-ml.txt`（gensim / scikit-learn / nltk / jieba）后按 **gensim LDA → sklearn LDA → 词频** 的降级链自动选择后端，并可用 `TOPIC_MODEL_BACKEND`（`auto` / `gensim` / `sklearn` / `frequency`）强制指定。可选 NLP 增强：jieba 中文分词、nltk 词形还原、bigram 组合特征。依赖缺失或语料不足时逐级回退。
 
 ## 学习路径规划
 
@@ -127,19 +127,25 @@ FLASK_CONFIG=testing pytest tests     # 48 passed, 1 skipped
 
 ## A/B 测试与满意度评估
 
-`ExperimentService` 提供可复现的在线实验：
+`ExperimentService` 提供可复现的在线实验，并支持**多实验并行**：
 
-- **分组**：按 `md5(experiment:user_id)` 确定性分配 `control`（按评分排序）/ `treatment`（混合推荐），首次访问落库。
+- **实验维度**：`ExperimentAssignment` / `Feedback` / `RecommendationEvent` 均带 `experiment` 字段；不同实验的指标互不串扰。
+- **分组**：按 `md5(experiment:user_id)` 确定性分配 `control`（按评分排序）/ `treatment`（混合推荐），首次访问落库（同一用户在不同实验中可属于不同分组）。
+- **实验选择**：`/recommendation/recommendations/for-you`、`/feedback`、`/click/<id>`、`/experiments/report` 均接受 `?experiment=<name>` 查询参数（默认 `recommendation`）；实验名截断至 64 字符。
 - **反馈**：`for-you` 页面提交星级 + 评论（`POST /recommendation/recommendations/feedback`）；分组以服务端分配为准。
-- **指标**：点击课程时上报 `POST /recommendation/recommendations/click/<id>`；曝光去重，报告输出曝光 / 点击与 CTR、平均满意度；报告页 `GET /recommendation/recommendations/experiments/report` 或 CLI `flask experiment-report`。
+- **指标**：点击课程时上报 `POST /recommendation/recommendations/click/<id>`；曝光去重（实验内），报告输出曝光 / 点击与 CTR、平均满意度；报告页 `GET /recommendation/recommendations/experiments/report?experiment=<name>` 或 CLI `flask experiment-report [--experiment NAME]`。
 - **安全**：启用 Flask-WTF `CSRFProtect`，表单与 JS 请求携带 token（测试环境自动关闭）。
 
 ## 课程数据导入
 
-`CourseImportService` 支持从可配置数据源导入课程：
+`CourseImportService` 支持从可配置数据源导入课程（JSON 与 CSV）：
 
-- 数据源为 JSON（对象含 `courses`/`results`，或数组），支持 URL 或本地文件；字段别名自动映射（如 `name→title`、`level→difficulty`）。
-- 配置：环境变量 `COURSE_DATA_URLS`（逗号分隔）；为空时回退到内置样例 `app/samples/mooc_courses.json`。
+- **JSON** 数据源：对象含 `courses`/`results`，或数组；支持 URL 或本地文件，字段别名自动映射（如 `name→title`、`level→difficulty`）。
+- **CSV** 数据源：自动识别逗号/分号/制表符分隔（真实数据集两者皆有），含 BOM/多余的空列可自动容错；列名别名覆盖 Coursera（`course_title` / `course_organization` / `course_rating` / `course_difficulty`）与 Class Central（`Course Name` / `Institutions` / `Parent.Subject` / `Url` / `Length`）等真实公开数据集。难度自动归一化为 `beginner`/`intermediate`/`advanced`。
+- **预配置示例数据源**（见 `.env.example`）：
+  - Coursera 课程数据集（约 890 门课，含评分/难度）；
+  - Class Central MOOC 汇总数据集（约 3000 门课，含 URL/类目）。
+- 配置：环境变量 `COURSE_DATA_URLS`（逗号分隔）；为空时回退到内置样例 `app/samples/mooc_courses.json`。单个源失败仅记录日志，不影响其他源。
 - 命令：`flask import-courses [--source URL|FILE ...]`（按标题去重）。
 
 ## 数据库迁移

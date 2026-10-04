@@ -3,7 +3,7 @@ content %}
 <div class="container">
   <h1>为你推荐</h1>
   <p>基于你的学习记录、课程质量与知识图谱关联度生成的个性化推荐。</p>
-  <p class="course-meta">实验分组: {{ variant }}</p>
+  <p class="course-meta">实验分组: {{ variant }} · 实验: {{ experiment }}</p>
 
   {% if recommendations %}
   <ul class="recommendation-list">
@@ -25,7 +25,7 @@ content %}
       <div class="recommendation-details">
         <p>推荐得分: {{ recommendation.score }}</p>
         <form
-          action="{{ url_for('recommendation.submit_feedback') }}"
+          action="{{ url_for('recommendation.submit_feedback', experiment=experiment) }}"
           method="post"
           class="feedback-form"
         >
@@ -56,17 +56,21 @@ content %}
   {% endif %}
 
   <p>
-    <a href="{{ url_for('recommendation.experiment_report') }}">查看实验报告</a>
+    <a href="{{ url_for('recommendation.experiment_report', experiment=experiment) }}"
+      >查看实验报告</a
+    >
   </p>
 </div>
 {% endblock %}
 {% block scripts %}
 <script>
   function recordClick(courseId) {
-    const url = "{{ url_for('recommendation.record_click', course_id=0) }}".replace(
+    const base = "{{ url_for('recommendation.record_click', course_id=0) }}".replace(
       "/0",
       `/${courseId}`
     );
+    // 沿用当前实验维度,保证点击归属正确的 A/B 分组。
+    const url = base + "?experiment={{ experiment | urlencode }}";
     // sendBeacon 无法设置自定义头,统一用 fetch 携带 CSRF token。
     fetch(url, {
       method: "POST",

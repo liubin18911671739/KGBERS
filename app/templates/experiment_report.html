@@ -31,6 +31,8 @@ content %}
     </tbody>
   </table>
 
-  <p><a href="{{ url_for('recommendation.for_you') }}">返回为你推荐</a></p>
+  <p><a href="{{ url_for('recommendation.for_you', experiment=experiment) }}"
+    >返回为你推荐</a
+  ></p>
 </div>
 {% endblock %}

@@ -27,13 +27,19 @@ class Feedback(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     course_id = db.Column(db.Integer, db.ForeignKey("course.id"), nullable=False)
+    experiment = db.Column(
+        db.String(64), nullable=False, server_default="recommendation"
+    )
     variant = db.Column(db.String(32))
     rating = db.Column(db.Integer, nullable=False)
     comment = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def __repr__(self):
-        return f"<Feedback user={self.user_id} course={self.course_id} rating={self.rating}>"
+        return (
+            f"<Feedback experiment={self.experiment} user={self.user_id} "
+            f"course={self.course_id} rating={self.rating}>"
+        )
 
     def save(self):
         db.session.add(self)
@@ -45,12 +51,18 @@ class RecommendationEvent(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     course_id = db.Column(db.Integer, db.ForeignKey("course.id"), nullable=False)
+    experiment = db.Column(
+        db.String(64), nullable=False, server_default="recommendation"
+    )
     variant = db.Column(db.String(32))
     event_type = db.Column(db.String(16), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def __repr__(self):
-        return f"<RecommendationEvent {self.event_type} user={self.user_id}>"
+        return (
+            f"<RecommendationEvent {self.event_type} experiment={self.experiment} "
+            f"user={self.user_id}>"
+        )
 
     def save(self):
         db.session.add(self)

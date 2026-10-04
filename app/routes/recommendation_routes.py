@@ -11,19 +11,27 @@ from app.models.recommendation import Recommendation
 from app.models.course import Course
 from app.services.recommendation_service import RecommendationService
 from app.services.experiment_service import (
+    DEFAULT_EXPERIMENT,
     ExperimentService,
     CONTROL,
-    DEFAULT_EXPERIMENT,
 )
 
 recommendation_bp = Blueprint("recommendation", __name__)
+
+
+def _current_experiment():
+    """实验名通过查询参数/表单字段选择;截断防注入,默认回到默认实验。"""
+    name = request.values.get("experiment") or DEFAULT_EXPERIMENT
+    name = str(name).strip()[:64]
+    return name or DEFAULT_EXPERIMENT
 
 
 @recommendation_bp.route("/recommendations/for-you")
 @login_required
 def for_you():
     experiment_service = ExperimentService()
-    variant = experiment_service.assign(current_user.id)
+    experiment = _current_experiment()
+    variant = experiment_service.assign(current_user.id, experiment)
 
     if variant == CONTROL:
         recommendations = [
@@ -40,12 +48,16 @@ def for_you():
         recommendations = RecommendationService().recommend_for_user(current_user.id)
 
     experiment_service.record_impressions(
-        current_user.id, [item["course_id"] for item in recommendations], variant
+        current_user.id,
+        [item["course_id"] for item in recommendations],
+        variant,
+        experiment,
     )
     return render_template(
         "for_you.html",
         recommendations=recommendations,
         variant=variant,
+        experiment=experiment,
     )
 
 
@@ -53,8 +65,12 @@ def for_you():
 @login_required
 def record_click(course_id):
     """记录推荐点击,用于 CTR 统计。"""
-    variant = ExperimentService().assign(current_user.id)
-    ExperimentService().record_event(current_user.id, course_id, variant, "click")
+    experiment_service = ExperimentService()
+    experiment = _current_experiment()
+    variant = experiment_service.assign(current_user.id, experiment)
+    experiment_service.record_event(
+        current_user.id, course_id, variant, "click", experiment
+    )
     return jsonify(success=True)
 
 
@@ -66,22 +82,25 @@ def submit_feedback():
     rating = max(1, min(5, int(request.form["rating"])))
     comment = request.form.get("comment")
     # 分组以服务端分配为准,忽略客户端传入的 variant(防止指标被篡改)。
-    variant = ExperimentService().assign(current_user.id)
+    experiment_service = ExperimentService()
+    experiment = _current_experiment()
+    variant = experiment_service.assign(current_user.id, experiment)
 
-    ExperimentService().record_feedback(
-        current_user.id, course_id, rating, comment, variant
+    experiment_service.record_feedback(
+        current_user.id, course_id, rating, comment, variant, experiment
     )
-    return redirect(url_for("recommendation.for_you"))
+    return redirect(url_for("recommendation.for_you", experiment=experiment))
 
 
 @recommendation_bp.route("/recommendations/experiments/report")
 @login_required
 def experiment_report():
-    report = ExperimentService().report()
+    experiment = _current_experiment()
+    report = ExperimentService().report(experiment)
     return render_template(
         "experiment_report.html",
         report=report,
-        experiment=DEFAULT_EXPERIMENT,
+        experiment=experiment,
     )
 
 

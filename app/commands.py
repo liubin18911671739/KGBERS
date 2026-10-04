@@ -4,6 +4,7 @@ from app import db
 from app.models.course import Course
 from app.models.user import User
 from app.models.recommendation import Recommendation
+from app.services.experiment_service import DEFAULT_EXPERIMENT
 
 
 SAMPLE_COURSES = [
@@ -123,15 +124,18 @@ def register_commands(app):
             click.echo(f"skipped knowledge graph seed: {exc}")
 
     @app.cli.command("experiment-report")
-    def experiment_report():
+    @click.option(
+        "--experiment",
+        default=DEFAULT_EXPERIMENT,
+        show_default=True,
+        help="实验名称(多实验时选择要报告的实验)。",
+    )
+    def experiment_report(experiment):
         """打印 A/B 实验报告(按分组统计满意度与 CTR)。"""
-        from app.services.experiment_service import (
-            ExperimentService,
-            DEFAULT_EXPERIMENT,
-        )
+        from app.services.experiment_service import ExperimentService
 
-        report = ExperimentService().report(DEFAULT_EXPERIMENT)
-        click.echo(f"experiment: {DEFAULT_EXPERIMENT}")
+        report = ExperimentService().report(experiment)
+        click.echo(f"experiment: {experiment}")
         for variant, metrics in report.items():
             click.echo(f"  {variant}: {metrics}")
 

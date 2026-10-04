@@ -59,8 +59,13 @@ KGBERS 是一个**可启动、页面可访问、测试通过**的研究脚手架
 - [x] **鉴权补全**：`get_course_recommendations` / `get_top_recommendations` 增加 `@login_required`。
 - [x] **分词噪声**：NLTK 路径过滤标点；保留单字中文 token。
 
+## 功能增强 ✅ 已完成
+
+- [x] **多实验支持**：`Feedback` / `RecommendationEvent` 增加 `experiment` 维度（migration `846387a88e28`，存量数据回填 `recommendation`）；`ExperimentService` 写入/统计按实验隔离；路由通过 `?experiment=` 查询参数选择实验（默认 `recommendation`），CLI `flask experiment-report --experiment NAME`。
+- [x] **真实 MOOC 数据源**：`CourseImportService` 支持 CSV（自动识别逗号/分号/制表符分隔，BOM/多余空列容错）；别名覆盖 Coursera / Class Central 真实公开数据集列名；难度归一化；单源失败仅记日志不拖累其他源；`.env.example` 提供两个真实数据源示例（实测 891 / 2993 条可解析）。
+- [x] **scikit-learn 主题建模**：`TopicModelService` 降级链 gensim LDA → sklearn LDA → 词频；`TOPIC_MODEL_BACKEND` 环境变量可强制指定；可选 jieba 中文分词、nltk 词形还原、bigram 组合特征；`requirements-ml.txt` 加入 `scikit-learn` 与 `jieba`，未安装时相关测试 skip。
+
 ## 后续可选项（非必需）
 
-- [ ] 多实验支持：为 `Feedback` / `RecommendationEvent` 增加 `experiment` 维度。
-- [ ] 接入真实 MOOC 数据源 URL（当前使用内置样例 / 可配置 `COURSE_DATA_URLS`）。
-- [ ] 以 scikit-learn / 更细粒度 NLP 增强主题建模。
+- [ ] jieba 分词精度提升（自定义课程领域词典）。
+- [ ] 实验维度管理界面（创建/归档实验）。

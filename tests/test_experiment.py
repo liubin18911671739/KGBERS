@@ -8,6 +8,7 @@ from app.models.user import User
 from app.services.experiment_service import (
     ExperimentService,
     CONTROL,
+    DEFAULT_EXPERIMENT,
     TREATMENT,
 )
 
@@ -123,3 +124,126 @@ def test_click_endpoint_records_event(app, client):
     assert RecommendationEvent.query.filter_by(
         user_id=user.id, event_type="click"
     ).count() == 1
+
+
+def test_assign_is_per_experiment(app):
+    user = User.add_user("u", "u@example.com", "pw")
+    service = ExperimentService()
+
+    default_variant = service.assign(user.id, DEFAULT_EXPERIMENT)
+    other_variant = service.assign(user.id, "new_ranking")
+
+    assert ExperimentAssignment.query.filter_by(user_id=user.id).count() == 2
+    assert default_variant in (CONTROL, TREATMENT)
+    assert other_variant in (CONTROL, TREATMENT)
+
+
+def test_report_isolates_experiments(app):
+    user = User.add_user("u", "u@example.com", "pw")
+    course = Course.add_course("C", "d", "p", "u", "x", "beginner", 1, 4.0)
+    service = ExperimentService()
+
+    default_variant = service.assign(user.id, DEFAULT_EXPERIMENT)
+    other_variant = service.assign(user.id, "new_ranking")
+
+    service.record_feedback(
+        user.id, course.id, 5, None, default_variant, DEFAULT_EXPERIMENT
+    )
+    service.record_feedback(user.id, course.id, 1, None, other_variant, "new_ranking")
+    service.record_event(
+        user.id, course.id, default_variant, "impression", DEFAULT_EXPERIMENT
+    )
+    service.record_event(
+        user.id, course.id, other_variant, "impression", "new_ranking"
+    )
+
+    default_report = service.report(DEFAULT_EXPERIMENT)
+    other_report = service.report("new_ranking")
+
+    assert default_report[default_variant]["feedback_count"] == 1
+    assert default_report[default_variant]["avg_rating"] == 5.0
+    assert other_report[other_variant]["feedback_count"] == 1
+    assert other_report[other_variant]["avg_rating"] == 1.0
+    # 另一个实验的数据不应串扰到默认实验。
+    for variant in (CONTROL, TREATMENT):
+        if variant != default_variant:
+            assert default_report[variant]["feedback_count"] == 0
+
+
+def test_impressions_dedupe_within_experiment(app):
+    user = User.add_user("u", "u@example.com", "pw")
+    course = Course.add_course("C", "d", "p", "u", "x", "beginner", 1, 4.0)
+    service = ExperimentService()
+
+    service.record_impressions(user.id, [course.id], TREATMENT, DEFAULT_EXPERIMENT)
+    service.record_impressions(user.id, [course.id], TREATMENT, DEFAULT_EXPERIMENT)
+    # 不同实验的曝光互不干扰,各自落一条。
+    service.record_impressions(user.id, [course.id], TREATMENT, "new_ranking")
+
+    assert (
+        RecommendationEvent.query.filter_by(
+            user_id=user.id,
+            experiment=DEFAULT_EXPERIMENT,
+            event_type="impression",
+        ).count()
+        == 1
+    )
+    assert (
+        RecommendationEvent.query.filter_by(
+            user_id=user.id, experiment="new_ranking", event_type="impression"
+        ).count()
+        == 1
+    )
+
+
+def test_for_you_carries_experiment_dimension(app, client):
+    user = User.add_user("u", "u@example.com", "pw")
+    course = Course.add_course("C", "d", "p", "u", "x", "beginner", 1, 4.0)
+    client.post("/user/login", data=dict(username="u", password="pw"))
+
+    assert (
+        client.get(
+            "/recommendation/recommendations/for-you?experiment=new_ranking"
+        ).status_code
+        == 200
+    )
+    assert (
+        RecommendationEvent.query.filter_by(experiment="new_ranking").count() > 0
+    )
+    # 未带参数的访问仍归属默认实验。
+    assert client.get("/recommendation/recommendations/for-you").status_code == 200
+    assert (
+        RecommendationEvent.query.filter_by(
+            experiment=DEFAULT_EXPERIMENT
+        ).count()
+        > 0
+    )
+
+
+def test_feedback_post_follows_experiment_query_param(app, client):
+    user = User.add_user("u", "u@example.com", "pw")
+    course = Course.add_course("C", "d", "p", "u", "x", "beginner", 1, 4.0)
+    client.post("/user/login", data=dict(username="u", password="pw"))
+
+    response = client.post(
+        "/recommendation/recommendations/feedback?experiment=new_ranking",
+        data=dict(course_id=course.id, rating=4),
+    )
+
+    assert response.status_code == 302
+    feedback = Feedback.query.one()
+    assert feedback.experiment == "new_ranking"
+    assert feedback.variant == ExperimentService().assign(user.id, "new_ranking")
+
+
+def test_report_page_renders_selected_experiment(app, client):
+    User.add_user("u", "u@example.com", "pw")
+    Course.add_course("C", "d", "p", "u", "x", "beginner", 1, 4.0)
+    client.post("/user/login", data=dict(username="u", password="pw"))
+
+    response = client.get(
+        "/recommendation/recommendations/experiments/report?experiment=new_ranking"
+    )
+
+    assert response.status_code == 200
+    assert b"new_ranking" in response.data
