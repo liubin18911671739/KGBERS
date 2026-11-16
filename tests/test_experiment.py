@@ -247,3 +247,26 @@ def test_report_page_renders_selected_experiment(app, client):
 
     assert response.status_code == 200
     assert b"new_ranking" in response.data
+
+
+def test_report_includes_completion_metrics(app):
+    from app.services.knowledge_tracing_service import KnowledgeTracingService
+
+    user = User.add_user("u", "u@example.com", "pw")
+    course = Course.add_course("C", "d", "p", "u", "x", "beginner", 1, 4.0)
+    service = ExperimentService()
+    variant = service.assign(user.id, "adaptive_kt")
+
+    KnowledgeTracingService().record_interaction(
+        user.id,
+        course.id,
+        event_type="complete",
+        experiment="adaptive_kt",
+        variant=variant,
+    )
+
+    report = service.report("adaptive_kt")
+
+    assert report[variant]["completions"] == 1
+    assert report[variant]["completion_users"] == 1
+    assert report[variant]["completion_rate"] is None

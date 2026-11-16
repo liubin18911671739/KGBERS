@@ -1,6 +1,6 @@
 # TODO
 
-KGBERS 是一个**可启动、页面可访问、测试通过**的研究脚手架。`P0`（阻断导入/启动）、`P1`（页面可用）、`P2`（工程化/功能）以及 `prompts.txt` 规划的全部模块均已完成。本文件记录已完成事项与后续可选项。
+KGBERS 是一个**可启动、页面可访问、测试通过**的研究脚手架。`P0`（阻断导入/启动）、`P1`（页面可用）、`P2`（工程化/功能）、`prompts.txt` 规划的全部模块，以及轻量自适应学习（BKT + 概念图传播）均已完成。本文件记录已完成事项与后续可选项。
 
 ## P0 — 阻断导入 / 启动 ✅ 已完成
 
@@ -30,17 +30,17 @@ KGBERS 是一个**可启动、页面可访问、测试通过**的研究脚手架
 
 - [x] **统一测试与实现**：pytest 集成用例 + `conftest.py` fixture；禁用真实 Neo4j。
 - [x] **引入 CI**：`.github/workflows/ci.yml`（Python 3.9，`requirements-dev.txt`，`compileall` + 迁移冒烟 + `pytest`）。
-- [x] **Flask-Migrate**：`migrations/` baseline；开发/生产 `flask db upgrade`，测试 `db.create_all()`。
+- [x] **Flask-Migrate**：`migrations/` 已包含 baseline、实验维度、自适应学习表（`c1d2e3f4a5b6`）、`Interaction.event_type`（`d2e3f4a5b6c7`）、`Interaction.experiment/variant`（`e3f4a5b6c7d8`）；开发/生产 `flask db upgrade`，测试 `db.create_all()`。
 - [x] **恢复 `.env` 加载**：`run.py` 启用 `load_dotenv()`；新增 `.env.example`。
-- [x] **数据初始化 / 种子脚本**：`flask seed-db`（课程 + 演示用户 + 推荐 + 先修关系）。
+- [x] **数据初始化 / 种子脚本**：`flask seed-db`（课程 + 演示用户 + 推荐 + 先修关系 + 知识追踪示例交互）。
 - [x] **真实推荐算法**：内容 + 协同 + 可选图谱混合；主题抽取降级实现。
 - [x] **知识地图真实数据**：`get_concept_graph` / `get_full_graph` 输出可序列化 d3 `{nodes,links}`。
 - [x] **清理文档**：`file_structure.md` / `README.md` / `AGENTS.md` 同步更新。
 
 ## 路线图 / prompts.txt 规划模块 ✅ 已完成
 
-- [x] **学习路径规划**：`Course.prerequisites` + `LearningPathService`（拓扑排序）；`GET /course/courses/<id>/path`。
-- [x] **A/B 测试与满意度评估**：`ExperimentAssignment` / `Feedback` / `RecommendationEvent` + `ExperimentService`；`for-you` 分组、反馈、点击、报告；`flask experiment-report`。
+- [x] **学习路径规划**：`Course.prerequisites` + `LearningPathService`（拓扑排序 + 掌握度排序）；完成状态统一读 `Recommendation ∪ Interaction(event_type='complete')`；`GET /course/courses/<id>/path`。
+- [x] **A/B 测试与满意度评估**：`ExperimentAssignment` / `Feedback` / `RecommendationEvent` + `ExperimentService`；`Interaction` 增加 `experiment/variant`；`for-you` 分组、反馈、点击、完成、报告；报告含曝光/点击/CTR、满意度、完成数与完成率；`flask experiment-report`。
 - [x] **LDA / nltk 主题建模**：`TopicModelService`（gensim LDA，缺失时回退词频）；可选 `requirements-ml.txt`。
 - [x] **真实 MOOC 数据接入**：`CourseImportService`（字段别名映射、URL/本地文件、内置样例、去重）；`flask import-courses`。
 - [x] **Flask-Migrate 迁移**：见 P2。
@@ -59,13 +59,33 @@ KGBERS 是一个**可启动、页面可访问、测试通过**的研究脚手架
 - [x] **鉴权补全**：`get_course_recommendations` / `get_top_recommendations` 增加 `@login_required`。
 - [x] **分词噪声**：NLTK 路径过滤标点；保留单字中文 token。
 
+## 自适应学习 review 修复 ✅ 已完成
+
+- [x] **完成语义统一**：新增 `completion_service.completed_course_ids()`，把历史 `Recommendation` 与 `Interaction(event_type='complete')` 合并；推荐排除、学习路径完成状态、自适应完成集合统一读取。
+- [x] **完成事件不再当作答对**：`Interaction.event_type` 区分 `answer` / `complete`；`complete` 跳过 BKT，`correct` 固定为 `False`，重复点击不会抬高掌握度。
+- [x] **交互输入校验**：JSON body 非 dict、非字符串 `concept`、超长 concept、非法 `event_type`、负数/NaN `response_time` 均安全处理，不再 500。
+- [x] **消除 N+1**：`ConceptGraphService` 与 `AdaptiveRecommendationService` 使用 `selectinload(Course.prerequisites)`；候选课程复用同一批对象；`baseline` 不再被 1000 条截断。
+- [x] **A/B UI 一致性**：control 组通过 `add_explanations()` 补齐掌握度/推荐理由，两组仅排序不同。
+- [x] **Neo4j 熔断**：`HAS_TOPIC` 查询失败后 60 秒内直接走课程/类别/先修/标题共现图，学习路径页不再反复等待连接失败。
+- [x] **mastery 查询范围**：`GET /recommendations/mastery` 默认只返回直接概念 + 课程节点，`?scope=user|course|all` 控制范围。
+- [x] **图缓存与口径**：传播时复制邻接表，避免污染缓存；学习路径展示的 `mastery` 改为 `course_readiness()` 口径；标题共现过滤高频词，避免过度连接。
+- [x] **A/B 完成指标**：`Interaction` 增加 `experiment/variant`；`ExperimentService.report()` 输出 `completions` / `completion_users` / `completion_rate`，报告页增加完成数列。
+- [x] **测试与文档**：新增知识追踪、概念图、自适应推荐、交互接口、完成语义、输入校验、完成指标等用例；README / AGENTS / file_structure 同步。
+
 ## 功能增强 ✅ 已完成
 
 - [x] **多实验支持**：`Feedback` / `RecommendationEvent` 增加 `experiment` 维度（migration `846387a88e28`，存量数据回填 `recommendation`）；`ExperimentService` 写入/统计按实验隔离；路由通过 `?experiment=` 查询参数选择实验（默认 `recommendation`），CLI `flask experiment-report --experiment NAME`。
 - [x] **真实 MOOC 数据源**：`CourseImportService` 支持 CSV（自动识别逗号/分号/制表符分隔，BOM/多余空列容错）；别名覆盖 Coursera / Class Central 真实公开数据集列名；难度归一化；单源失败仅记日志不拖累其他源；`.env.example` 提供两个真实数据源示例（实测 891 / 2993 条可解析）。
 - [x] **scikit-learn 主题建模**：`TopicModelService` 降级链 gensim LDA → sklearn LDA → 词频；`TOPIC_MODEL_BACKEND` 环境变量可强制指定；可选 jieba 中文分词、nltk 词形还原、bigram 组合特征；`requirements-ml.txt` 加入 `scikit-learn` 与 `jieba`，未安装时相关测试 skip。
+- [x] **轻量自适应学习（BKT + 概念图传播）**：新增 `Interaction` / `KnowledgeState` 模型（migration `c1d2e3f4a5b6` + `d2e3f4a5b6c7` + `e3f4a5b6c7d8`）、`KnowledgeTracingService`（贝叶斯知识追踪 + 遗忘衰减）、`ConceptGraphService`（课程/类别/Neo4j 主题节点上的迭代标签传播，Neo4j 失败 60s 熔断）、`AdaptiveRecommendationService`（0.6 baseline + 0.4 adaptive，附推荐理由）、`completion_service`（`Recommendation` 与 `Interaction(event_type='complete')` 完成状态并集）；`POST /recommendation/recommendations/interaction` 采集答题/完成事件（完成事件不抬高掌握度，并带 experiment/variant 维度），`GET /recommendation/recommendations/mastery` 查看掌握度，`GET /recommendation/recommendations/for-you?experiment=adaptive_kt` 做 A/B 对照（control/treatment UI 一致，报告含完成数/完成率）；学习路径同层排序引入掌握度缺口。参考 BKT（Corbett & Anderson, 1995）、GKT（Nakagawa et al., 2019）与 TransKT（Han et al., IJCAI 2025, arXiv:2505.13489），全程纯 Python，无需 PyTorch/TensorFlow。
 
 ## 后续可选项（非必需）
 
-- [ ] jieba 分词精度提升（自定义课程领域词典）。
-- [ ] 实验维度管理界面（创建/归档实验）。
+- [ ] **BKT 参数校准**：按概念/课程做 EM、网格搜索或分层贝叶斯估计，替代当前全局默认参数。
+- [ ] **答题时长特征**：把已预留的 `Interaction.response_time` 接入知识追踪（速度/犹豫特征）或自适应测试。
+- [ ] **更细粒度概念图**：用课程大纲、习题知识点或嵌入/LLM 生成概念链接，替代标题关键词共现启发式。
+- [ ] **图谱缓存**：按课程目录版本缓存 `ConceptGraphService` 图，减少大规模课程下的重复构建。
+- [ ] **学习效果指标**：在 A/B 报告中加入掌握度提升、完课率置信区间与统计显著性检验。
+- [ ] **实验管理界面**：创建/归档实验、查看分组与完成指标。
+- [ ] **jieba 分词精度提升**：自定义课程领域词典。
+- [ ] **UI 增强**：推荐页展示掌握度趋势、学习路径进度和完成后的反馈提示。

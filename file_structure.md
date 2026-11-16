@@ -13,6 +13,7 @@ KGBERS/
 │   │   ├── user.py                    # User(SQLAlchemy)
 │   │   ├── course.py                  # Course(SQLAlchemy,含先修关系 prerequisites)
 │   │   ├── recommendation.py          # Recommendation(SQLAlchemy)
+│   │   ├── interaction.py             # Interaction / KnowledgeState(知识追踪,含 event_type/experiment)
 │   │   ├── experiment.py              # ExperimentAssignment / Feedback / RecommendationEvent
 │   │   └── knowledge_graph.py         # KnowledgeGraph(py2neo 封装,非 SQLAlchemy 模型)
 │   ├── routes/
@@ -27,8 +28,12 @@ KGBERS/
 │   │   ├── user_modeling_service.py       # UserService(别名 UserModelingService)
 │   │   ├── course_analysis_service.py     # CourseAnalysisService
 │   │   ├── recommendation_service.py      # RecommendationService(混合推荐)
+│   │   ├── completion_service.py          # completed_course_ids(完成/已学状态并集)
 │   │   ├── knowledge_graph_service.py     # KnowledgeService
-│   │   ├── learning_path_service.py       # LearningPathService(拓扑排序)
+│   │   ├── knowledge_tracing_service.py   # KnowledgeTracingService(轻量 BKT)
+│   │   ├── concept_graph_service.py       # ConceptGraphService(概念图掌握度传播)
+│   │   ├── adaptive_recommendation_service.py # AdaptiveRecommendationService(adaptive_kt 实验)
+│   │   ├── learning_path_service.py       # LearningPathService(拓扑排序 + 掌握度排序)
 │   │   ├── experiment_service.py          # ExperimentService(A/B + 反馈 + 报告)
 │   │   ├── topic_modeling_service.py      # TopicModelService(LDA / 词频回退)
 │   │   └── course_import_service.py       # CourseImportService(JSON 导入)
@@ -60,7 +65,7 @@ KGBERS/
 │       │   └── styles.css
 │       └── js/
 │           └── scripts.js
-├── migrations/                        # Alembic 迁移(baseline)
+├── migrations/                        # Alembic 迁移(baseline + 实验维度 + 自适应学习表 + event_type/experiment)
 │   ├── env.py
 │   ├── alembic.ini
 │   └── versions/
@@ -78,6 +83,10 @@ KGBERS/
 │   ├── test_course_import.py
 │   ├── test_learning_path.py
 │   ├── test_experiment.py
+│   ├── test_knowledge_tracing.py
+│   ├── test_concept_graph.py
+│   ├── test_adaptive_recommendation.py
+│   ├── test_interaction.py
 │   ├── test_topic_modeling.py
 │   └── test_knowledge_graph.py
 ├── config.py                          # Config / Development / Testing / Production 与 config 字典

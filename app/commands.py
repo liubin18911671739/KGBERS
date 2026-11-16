@@ -111,6 +111,38 @@ def register_commands(app):
             f"(demo user: {DEMO_USERNAME}/{DEMO_PASSWORD})"
         )
 
+        created_interactions = 0
+        try:
+            from app.models.interaction import Interaction
+            from app.services.knowledge_tracing_service import (
+                KnowledgeTracingService,
+            )
+
+            if Interaction.query.filter_by(user_id=user.id).count() == 0:
+                tracing = KnowledgeTracingService()
+                python_course = Course.query.filter_by(
+                    title="Python 编程入门"
+                ).first()
+                algorithm_course = Course.query.filter_by(
+                    title="数据结构与算法"
+                ).first()
+                if python_course:
+                    tracing.record_interaction(
+                        user.id, python_course.id, correct=True
+                    )
+                    created_interactions += 1
+                if algorithm_course:
+                    tracing.record_interaction(
+                        user.id, algorithm_course.id, correct=False
+                    )
+                    created_interactions += 1
+            if created_interactions:
+                click.echo(
+                    f"seeded {created_interactions} interactions for knowledge tracing"
+                )
+        except Exception as exc:  # 记录交互失败不应阻塞基础种子数据
+            click.echo(f"skipped interaction seed: {exc}")
+
         try:
             from app.models.knowledge_graph import KnowledgeGraph
             from app.utils.neo4j_utils import get_neo4j_db

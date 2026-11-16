@@ -20,7 +20,13 @@ content %}
         <div class="course-meta">
           <span>类别: {{ recommendation.category }}</span>
           <span>难度: {{ recommendation.difficulty }}</span>
+          {% if recommendation.mastery is defined %}
+          <span>掌握度: {{ recommendation.mastery }}</span>
+          {% endif %}
         </div>
+        {% if recommendation.reason %}
+        <p class="course-meta">推荐理由: {{ recommendation.reason }}</p>
+        {% endif %}
       </div>
       <div class="recommendation-details">
         <p>推荐得分: {{ recommendation.score }}</p>
@@ -46,6 +52,20 @@ content %}
           </label>
           <input type="text" name="comment" placeholder="可选评论" />
           <button type="submit" class="btn">提交反馈</button>
+        </form>
+        <form
+          action="{{ url_for('recommendation.record_interaction', experiment=experiment) }}"
+          method="post"
+          class="interaction-form"
+        >
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+          <input
+            type="hidden"
+            name="course_id"
+            value="{{ recommendation.course_id }}"
+          />
+          <input type="hidden" name="event_type" value="complete" />
+          <button type="submit" class="btn">标记为已完成</button>
         </form>
       </div>
     </li>

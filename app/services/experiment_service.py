@@ -6,6 +6,7 @@ from app.models.experiment import (
     Feedback,
     RecommendationEvent,
 )
+from app.models.interaction import EVENT_COMPLETE, Interaction
 
 
 DEFAULT_EXPERIMENT = "recommendation"
@@ -107,6 +108,21 @@ class ExperimentService:
             clicks = RecommendationEvent.query.filter_by(
                 experiment=experiment, variant=variant, event_type="click"
             ).count()
+            completions = Interaction.query.filter_by(
+                experiment=experiment,
+                variant=variant,
+                event_type=EVENT_COMPLETE,
+            ).count()
+            completion_users = (
+                db.session.query(Interaction.user_id)
+                .filter_by(
+                    experiment=experiment,
+                    variant=variant,
+                    event_type=EVENT_COMPLETE,
+                )
+                .distinct()
+                .count()
+            )
 
             report[variant] = {
                 "users": len(variant_users),
@@ -115,6 +131,13 @@ class ExperimentService:
                 "impressions": impressions,
                 "clicks": clicks,
                 "ctr": round(clicks / impressions, 4) if impressions else None,
+                "completions": completions,
+                "completion_users": completion_users,
+                "completion_rate": (
+                    min(round(completions / impressions, 4), 1.0)
+                    if impressions
+                    else None
+                ),
             }
 
         return report

@@ -2,7 +2,7 @@
 content %}
 <div class="container">
   <h1>实验报告:{{ experiment }}</h1>
-  <p>对比不同推荐策略的满意度与点击率。</p>
+  <p>对比不同推荐策略的满意度、点击率与完成率。</p>
 
   <table class="experiment-report">
     <thead>
@@ -14,6 +14,8 @@ content %}
         <th>曝光</th>
         <th>点击</th>
         <th>CTR</th>
+        <th>完成数</th>
+        <th>完成率</th>
       </tr>
     </thead>
     <tbody>
@@ -26,6 +28,11 @@ content %}
         <td>{{ metrics.impressions }}</td>
         <td>{{ metrics.clicks }}</td>
         <td>{{ metrics.ctr if metrics.ctr is not none else '-' }}</td>
+        <td>{{ metrics.completions }}</td>
+        <td>
+          {{ metrics.completion_rate if metrics.completion_rate is not none else
+          '-' }}
+        </td>
       </tr>
       {% endfor %}
     </tbody>

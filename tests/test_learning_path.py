@@ -72,3 +72,33 @@ def test_path_for_user_marks_completed(app):
 
     assert completed[a.id] is True
     assert completed[b.id] is False
+
+
+def test_build_path_prefers_lower_mastery_within_same_level(app):
+    a = _course("A")
+    b = _course("B")
+    target = _course("Target")
+    target.add_prerequisite(a)
+    target.add_prerequisite(b)
+    mastery = {
+        f"Course_{a.id}": 0.9,
+        f"Course_{b.id}": 0.2,
+    }
+
+    ids = [
+        step["course_id"]
+        for step in LearningPathService().build_path(target.id, mastery=mastery)
+    ]
+
+    assert ids == [b.id, a.id, target.id]
+
+
+def test_path_for_user_includes_mastery(app):
+    a = _course("A")
+    b = _course("B")
+    b.add_prerequisite(a)
+    user = User.add_user("u", "u@example.com", "pw")
+
+    path = LearningPathService().path_for_user(user.id, b.id)
+
+    assert all("mastery" in step and "mastery_gap" in step for step in path)

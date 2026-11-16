@@ -1,6 +1,7 @@
 from app.models.recommendation import Recommendation
 from app.models.course import Course
 from app.models.user import User
+from app.services.completion_service import completed_course_ids
 from app.utils.neo4j_utils import get_neo4j_db
 
 
@@ -83,7 +84,7 @@ class RecommendationService:
             return []
 
         user_recs = Recommendation.query.filter_by(user_id=user_id).all()
-        rated_course_ids = {rec.course_id for rec in user_recs}
+        excluded_course_ids = completed_course_ids(user_id)
 
         preferred_categories = {}
         preferred_difficulties = []
@@ -97,7 +98,7 @@ class RecommendationService:
                 preferred_difficulties.append(rec.course.difficulty)
 
         quality = self._course_quality()
-        user_topics = self._get_course_topics(rated_course_ids)
+        user_topics = self._get_course_topics(excluded_course_ids)
 
         courses = Course.query.all()
         # 一次查询取回所有候选课程的图谱主题,避免逐课程访问 Neo4j(N+1)。
@@ -107,7 +108,7 @@ class RecommendationService:
 
         results = []
         for course in courses:
-            if course.id in rated_course_ids:
+            if course.id in excluded_course_ids:
                 continue
 
             content_score = self._content_score(

@@ -2,7 +2,7 @@
 
 > 基金项目「知识图谱驱动的个性化在线教育推荐系统研究」的研究脚手架。
 >
-> ✅ 应用可启动、页面可访问、测试通过（`pytest` 全绿）。六大模块（知识图谱、学习者建模、课程分析、混合推荐、交互界面、A/B 评估）均有可运行实现；`prompts.txt` 规划的功能已全部落地，重型 ML 为可选增强。首次上手请先阅读 [TODO.md](TODO.md)。
+> ✅ 应用可启动、页面可访问、测试通过（`pytest` 全绿）。六大模块（知识图谱、学习者建模、课程分析、混合推荐、交互界面、A/B 评估）均有可运行实现；`prompts.txt` 规划的功能已全部落地，重型 ML 为可选增强。新增**轻量知识追踪 + 概念图传播**自适应学习实验（无需 PyTorch/TensorFlow）。首次上手请先阅读 [TODO.md](TODO.md)。
 
 ## 项目简介
 
@@ -17,7 +17,7 @@ KGBERS（Knowledge Graph based Education Recommendation System）尝试用 **Neo
 5. 用户交互界面（知识地图、推荐列表/详情、进度跟踪）
 6. 系统运维与评估（A/B 测试、满意度评估）
 
-**现状**：六大模块均有可运行的实现。推荐引擎为内容/协同/图谱混合（无 Neo4j 时自动降级）；学习路径、A/B 测试与满意度评估已落地（支持多实验，`?experiment=` 切换）；LDA 主题建模（gensim / scikit-learn）与真实数据导入（JSON/CSV 公开数据集）为可选/可配置增强。
+**现状**：六大模块均有可运行的实现。推荐引擎为内容/协同/图谱混合（无 Neo4j 时自动降级）；学习路径、A/B 测试与满意度评估已落地（支持多实验，`?experiment=` 切换）；新增基于 BKT + 概念图传播的自适应推荐对照实验（`?experiment=adaptive_kt`，纯 Python，无 PyTorch/TensorFlow）；LDA 主题建模（gensim / scikit-learn）与真实数据导入（JSON/CSV 公开数据集）为可选/可配置增强。
 
 ## 技术栈
 
@@ -26,7 +26,7 @@ KGBERS（Knowledge Graph based Education Recommendation System）尝试用 **Neo
 | Web 框架 | Flask 2.0.1（`flask-sqlalchemy` / `flask-login` / `flask-wtf`（CSRF） / `flask-bootstrap`） |
 | 关系数据库 | SQLite（`data/sqlite/app.db`） |
 | 图数据库 | Neo4j（通过 `py2neo` 访问，可选；不可用时降级） |
-| 数据处理 | 纯 Python（推荐/关键词抽取）；安装 `requirements-ml.txt` 后启用 gensim LDA / nltk |
+| 数据处理 | 纯 Python（推荐/知识追踪/图传播/关键词抽取）；安装 `requirements-ml.txt` 后启用 gensim LDA / nltk |
 | 数据库迁移 | Flask-Migrate / Alembic |
 | 测试 | pytest |
 | Python | 3.9 |
@@ -39,14 +39,14 @@ KGBERS/
 ├── app/
 │   ├── __init__.py              # create_app()、db/migrate/login_manager/bootstrap 单例、user_loader
 │   ├── commands.py              # CLI：flask seed-db / import-courses / experiment-report
-│   ├── models/                  # User / Course / Recommendation / experiment 三模型 + KnowledgeGraph（py2neo）
+│   ├── models/                  # User / Course / Recommendation / Interaction / KnowledgeState / ExperimentAssignment / Feedback / RecommendationEvent + KnowledgeGraph（py2neo）
 │   ├── routes/                  # 蓝图：main / user / course / recommendation / knowledge_graph
-│   ├── services/                # 学习者建模、课程分析、混合推荐、学习路径、实验、主题建模、课程导入
+│   ├── services/                # 学习者建模、知识追踪、概念图传播、自适应推荐、完成状态、混合推荐、学习路径、实验、主题建模、课程导入
 │   ├── samples/                 # 内置课程样例 mooc_courses.json
 │   ├── utils/                   # neo4j_utils.py（get_neo4j_db）/ sqlite_utils.py
 │   ├── templates/               # Jinja2 模板
 │   └── static/                  # css / js
-├── migrations/                  # Alembic 迁移（baseline）
+├── migrations/                  # Alembic 迁移（实验维度、自适应学习表、Interaction.event_type/experiment）
 ├── tests/                       # pytest 用例 + conftest.py
 ├── data/                        # 运行时生成（gitignored）
 ├── config.py                    # 配置类与 config 字典
@@ -69,7 +69,7 @@ KGBERS/
 | `main` | 无 | `/`、`/about`、`/contact` |
 | `user` | `/user` | `/register`、`/login`、`/logout`、`/profile`、`/users` |
 | `course` | `/course` | `/courses`、`/courses/<id>`、`/courses/<id>/path`、`/courses/add`、`/courses/search`、`/courses/filter`、`/courses/top_rated` |
-| `recommendation` | `/recommendation` | `/recommendations`、`/recommendations/for-you`、`/recommendations/feedback`、`/recommendations/click/<id>`、`/recommendations/experiments/report`、`/recommendations/course/<id>`、`/recommendations/top`、`/recommendations/add`、`/recommendations/<id>`（PUT/DELETE） |
+| `recommendation` | `/recommendation` | `/recommendations`、`/recommendations/for-you`、`/recommendations/feedback`、`/recommendations/interaction`、`/recommendations/mastery`、`/recommendations/click/<id>`、`/recommendations/experiments/report`、`/recommendations/course/<id>`、`/recommendations/top`、`/recommendations/add`、`/recommendations/<id>`（PUT/DELETE） |
 | `knowledge_graph` | `/knowledge-graph` | `/knowledge_graph`、`/knowledge_graph/concept[...]` |
 
 ## 快速开始
@@ -88,18 +88,18 @@ FLASK_APP=run.py flask db upgrade
 python run.py
 
 # 5. 可选：写入示例数据 / 导入课程
-FLASK_APP=run.py flask seed-db          # 课程 + 演示账号 demo/demo1234 + 先修关系
+FLASK_APP=run.py flask seed-db          # 课程 + 演示账号 demo/demo1234 + 先修关系 + 知识追踪示例交互
 FLASK_APP=run.py flask import-courses   # 从配置数据源/内置样例导入
 ```
 
 - 也可用 `FLASK_CONFIG=testing python run.py` 切换配置；`default` → `DevelopmentConfig`。
-- Neo4j 可选：`get_neo4j_db()` 读取 `NEO4J_URI/USER/PASSWORD`（默认 `bolt://localhost:7687` / `neo4j` / `password`）。知识图谱相关功能在 Neo4j 不可用时降级（空图 / 图谱信号置 0），不影响其他页面。
+- Neo4j 可选：`get_neo4j_db()` 读取 `NEO4J_URI/USER/PASSWORD`（默认 `bolt://localhost:7687` / `neo4j` / `password`）。知识图谱相关功能在 Neo4j 不可用时降级（空图 / 图谱信号置 0）；概念图查询失败后会熔断 60 秒，避免学习路径和自适应推荐反复等待连接失败。
 - `.env` 会被 `run.py` 自动加载；也可直接在 shell 设置 `SECRET_KEY`、`DATABASE_URL`、`TEST_DATABASE_URL`、`NEO4J_*`、`COURSE_DATA_URLS`、`TOPIC_MODEL_BACKEND`、`FLASK_CONFIG`。
 
 ## 测试
 
 ```bash
-FLASK_CONFIG=testing pytest tests     # 48 passed, 1 skipped
+FLASK_CONFIG=testing pytest tests     # 94 passed, 5 skipped
 ```
 
 - 用例为 pytest 函数风格，`tests/conftest.py` 提供 `app` / `client` fixture，并禁用真实 Neo4j 访问。
@@ -115,25 +115,64 @@ FLASK_CONFIG=testing pytest tests     # 48 passed, 1 skipped
 2. **协同/质量**：候选课程在所有用户评分中的平均值。
 3. **知识图谱**：候选课程与用户已学课程在 Neo4j 中共享 `HAS_TOPIC` 主题的 Jaccard 相似度（Neo4j 不可用时为 0）。
 
+候选排除使用 `completion_service.completed_course_ids()`：历史 `Recommendation` 与 `Interaction(event_type='complete')` 的并集，避免已完成课程继续出现在推荐中。
+
 `CourseAnalysisService._perform_topic_modeling` 默认使用词频关键词抽取；安装 `requirements-ml.txt`（gensim / scikit-learn / nltk / jieba）后按 **gensim LDA → sklearn LDA → 词频** 的降级链自动选择后端，并可用 `TOPIC_MODEL_BACKEND`（`auto` / `gensim` / `sklearn` / `frequency`）强制指定。可选 NLP 增强：jieba 中文分词、nltk 词形还原、bigram 组合特征。依赖缺失或语料不足时逐级回退。
+
+## 自适应学习:知识追踪与概念图传播
+
+新增一套**纯 Python、无 PyTorch/TensorFlow** 的轻量自适应学习实现，作为 A/B 实验的 treatment 分支，不替换原有推荐器：
+
+- **知识追踪**（`KnowledgeTracingService`）：基于 Bayesian Knowledge Tracing（Corbett & Anderson, 1995）逐次更新每个知识点的掌握概率：
+  - 答对后验：`P(L|correct) = P(L)(1-slip) / [P(L)(1-slip) + (1-P(L))guess]`
+  - 答错后验：`P(L|wrong) = P(L)slip / [P(L)slip + (1-P(L))(1-guess)]`
+  - 再叠加学习转移 `P(L) ← P(L) + (1-P(L))·learn`，并按 30 天半衰期做遗忘衰减。
+- **概念图传播**（`ConceptGraphService`）：借鉴 Graph-based Knowledge Tracing（Nakagawa et al., 2019）与 TransKT（Han et al., IJCAI 2025, arXiv:2505.13489）的「概念图引导知识迁移」思想，把 GCN 替换为可解释的迭代标签传播：
+  `S^(t+1) = (1-α)S^(t) + α·A_norm·S^(t)`。
+  图节点包括课程节点、类别节点、Neo4j `HAS_TOPIC` 主题节点和先修边；另用课程标题关键词共现生成跨类别课程的弱链接（TransKT 隐式概念链接的轻量替代）。Neo4j 不可用时自动退化为「课程 + 类别 + 先修 + 标题共现」图。
+- **自适应推荐**（`AdaptiveRecommendationService`）：`final = 0.6 × baseline + 0.4 × adaptive`，其中 adaptive 综合掌握度缺口、先修准备度、最近发展区与难度匹配，并返回 `reason` 解释。
+- **交互采集**：`POST /recommendation/recommendations/interaction` 接收 `course_id`、可选 `concept`、`event_type`（`answer` 默认 / `complete`）、`correct`、`response_time`、可选 `experiment`。`answer` 事件参与 BKT；`complete` 只记录完成状态，不会把“完成课程”当成答对而抬高掌握度。完成状态通过 `completion_service.completed_course_ids()` 与历史 `Recommendation` 合并，供推荐排除、学习路径和 A/B 完成率统计使用。`response_time` 目前为预留字段。
+
+  ```json
+  {
+    "course_id": 1,
+    "event_type": "answer",
+    "correct": true,
+    "response_time": 12.5,
+    "experiment": "adaptive_kt"
+  }
+  ```
+
+  非测试环境需要登录并携带 CSRF token（JSON 请求使用 `X-CSRFToken` 头）。
+
+- **掌握度查询**：`GET /recommendation/recommendations/mastery` 默认只返回直接观测概念和课程节点，`?scope=user|course|all` 可控制范围。
+- **实验**：访问 `/recommendation/recommendations/for-you?experiment=adaptive_kt`，`control` 与 `treatment` 展示相同的掌握度/推荐理由字段，仅排序不同；报告使用 `flask experiment-report --experiment adaptive_kt`。
+- **性能与降级**：候选课程与先修关系使用 `selectinload` 预加载；Neo4j `HAS_TOPIC` 查询失败后熔断 60 秒，期间自动使用课程/类别/先修/标题共现图。
+
+**调研参考（2024–2025）**：本实现是以下工作的轻量近似，而非其深度模型复现：
+
+- Han et al., *Contrastive Cross-Course Knowledge Tracing via Concept Graph Guided Knowledge Transfer*（TransKT, IJCAI 2025, arXiv:2505.13489）→ 跨课程概念图迁移。
+- *Efficient Knowledge Tracing Leveraging Higher-Order Information in Integrated Graphs*（DGAKT, arXiv:2507.18668, 2025）→ 课程/知识点/习题图上的高阶传播思想。
+- Tong et al., *Deep knowledge tracing and cognitive load estimation for personalized learning path generation*（Scientific Reports, 2025）→ 知识追踪驱动学习路径。
+- *Uncertainty-Aware Knowledge Tracing Models*（arXiv:2509.21514, 2025）→ 后续可在掌握度上增加置信区间/不确定性。
 
 ## 学习路径规划
 
 `LearningPathService` 基于课程的先修关系（`course_prerequisites` 关联表 / `Course.prerequisites`）生成学习序列：
 
-- 收集目标课程的传递先修课程，做 Kahn 拓扑排序（先修在前），同层按难度升序、评分降序稳定排序，并检测环。
-- 登录用户访问时标记已完成课程。
+- 收集目标课程的传递先修课程，做 Kahn 拓扑排序（先修在前），同层按掌握度升序（缺口大的优先）、难度升序、评分降序稳定排序，并检测环。
+- 登录用户访问时标记已完成课程，并附带 `mastery` / `mastery_gap`；掌握度来自知识追踪 + 概念图传播。
 - 页面：`GET /course/courses/<id>/path`（从课程详情进入）。
 
 ## A/B 测试与满意度评估
 
 `ExperimentService` 提供可复现的在线实验，并支持**多实验并行**：
 
-- **实验维度**：`ExperimentAssignment` / `Feedback` / `RecommendationEvent` 均带 `experiment` 字段；不同实验的指标互不串扰。
+- **实验维度**：`ExperimentAssignment` / `Feedback` / `RecommendationEvent` / `Interaction` 均带 `experiment` 字段；不同实验的指标互不串扰。
 - **分组**：按 `md5(experiment:user_id)` 确定性分配 `control`（按评分排序）/ `treatment`（混合推荐），首次访问落库（同一用户在不同实验中可属于不同分组）。
-- **实验选择**：`/recommendation/recommendations/for-you`、`/feedback`、`/click/<id>`、`/experiments/report` 均接受 `?experiment=<name>` 查询参数（默认 `recommendation`）；实验名截断至 64 字符。
+- **实验选择**：`/recommendation/recommendations/for-you`、`/feedback`、`/click/<id>`、`/interaction`、`/experiments/report` 均接受 `?experiment=<name>` 查询参数（默认 `recommendation`）；实验名截断至 64 字符。内置 `adaptive_kt` 实验：`control` = 原混合推荐，`treatment` = 知识追踪 + 概念图传播的自适应推荐。
 - **反馈**：`for-you` 页面提交星级 + 评论（`POST /recommendation/recommendations/feedback`）；分组以服务端分配为准。
-- **指标**：点击课程时上报 `POST /recommendation/recommendations/click/<id>`；曝光去重（实验内），报告输出曝光 / 点击与 CTR、平均满意度；报告页 `GET /recommendation/recommendations/experiments/report?experiment=<name>` 或 CLI `flask experiment-report [--experiment NAME]`。
+- **指标**：点击课程时上报 `POST /recommendation/recommendations/click/<id>`；曝光去重（实验内），报告输出曝光 / 点击与 CTR、平均满意度、完成数与完成率；报告页 `GET /recommendation/recommendations/experiments/report?experiment=<name>` 或 CLI `flask experiment-report [--experiment NAME]`。
 - **安全**：启用 Flask-WTF `CSRFProtect`，表单与 JS 请求携带 token（测试环境自动关闭）。
 
 ## 课程数据导入
@@ -150,14 +189,31 @@ FLASK_CONFIG=testing pytest tests     # 48 passed, 1 skipped
 
 ## 数据库迁移
 
-使用 Flask-Migrate/Alambic 管理 schema（`migrations/`）：
+使用 Flask-Migrate/Alembic 管理 schema（`migrations/`）：
 
 ```bash
 FLASK_APP=run.py flask db upgrade      # 应用迁移(开发/生产)
 FLASK_APP=run.py flask db migrate -m "message"   # 修改模型后生成迁移
 ```
 
+当前迁移链：
+
+- `b617231a55d2`：baseline schema
+- `846387a88e28`：`Feedback` / `RecommendationEvent` 的 `experiment` 维度
+- `c1d2e3f4a5b6`：`interaction` / `knowledge_state` 表
+- `d2e3f4a5b6c7`：`interaction.event_type`
+- `e3f4a5b6c7d8`：`interaction.experiment` / `variant`（当前 head）
+
 测试环境仍由 `create_app()` 中的 `db.create_all()` 自动建表。
+
+## 已知限制与后续方向
+
+- **BKT 参数固定**：当前 `p_init / p_learn / p_slip / p_guess` 为全局默认值，尚未按概念或课程做 EM/网格搜索校准。
+- **`response_time` 预留**：已记录并校验，但尚未进入知识追踪特征；后续可用于速度/犹豫建模。
+- **概念图是轻量启发式**：Neo4j 不可用时依赖类别、先修和标题关键词共现；标题共现已做高频词过滤，但仍不如课程大纲/习题知识点或嵌入/LLM 链接精确。
+- **图构建按请求进行**：已用 `selectinload` 消除 N+1，但大规模课程下仍建议按课程目录版本缓存整图。
+- **A/B 指标**：完成率以曝光为分母并截断到 1；暂未加入掌握度提升、置信区间或显著性检验。
+- **兼容语义**：`Recommendation` 仍同时承担“已评价/已学”的历史语义；新代码应优先使用 `completion_service.completed_course_ids()` 判断完成/排除。
 
 ## 文档说明
 

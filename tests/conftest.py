@@ -27,8 +27,11 @@ def client(app):
 def _disable_neo4j(monkeypatch):
     """避免测试访问真实 Neo4j;知识图谱相关测试自行 mock。"""
     import app.services.recommendation_service as recommendation_service
+    import app.services.concept_graph_service as concept_graph_service
 
     def _raise():
         raise RuntimeError("Neo4j disabled in tests")
 
     monkeypatch.setattr(recommendation_service, "get_neo4j_db", _raise)
+    monkeypatch.setattr(concept_graph_service, "get_neo4j_db", _raise)
+    concept_graph_service.reset_neo4j_backoff()
